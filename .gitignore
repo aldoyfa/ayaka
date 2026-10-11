@@ -1,0 +1,39 @@
+# Environment & Secrets
+.env
+*.env
+*.env.*
+!.env.example
+credentials.json
+token.json
+client_secret*.json
+
+# Databases & Persistent Data
+*.db
+*.sqlite
+*.sqlite3
+ayaka_state.db
+data/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Logs
+*.log
+logs/
+
+# IDE / Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo

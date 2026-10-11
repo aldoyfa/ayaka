@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  ayaka:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ayaka-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_PATH=/app/data/ayaka_state.db
+      - TZ=Asia/Jakarta
+    volumes:
+      # Persistent SQLite database & cache
+      - ./data:/app/data
+      # Environment credentials (read-write for /session commands)
+      - ./.env:/app/.env
+      # Operational settings & Gmail keyword configuration
+      - ./config.json:/app/config.json:ro
+      # Task filters & blacklist configuration (read-write for /filter commands)
+      - ./task_filters.json:/app/task_filters.json
+      # Customizable anime character dialogue file
+      - ./dialogues.json:/app/dialogues.json:ro
+      # Google Workspace OAuth files (optional if using Google)
+      - ./credentials.json:/app/credentials.json:ro
+      - ./token.json:/app/token.json
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,25 @@
+[project]
+name = "ayaka"
+version = "0.1.0"
+description = "Autonomous academic synchronization and reminder assistant for ITB"
+authors = [
+    { name = "nagikaz" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "discord.py>=2.3.2",
+    "httpx>=0.27.0",
+    "beautifulsoup4>=4.12.3",
+    "google-api-python-client>=2.120.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.0",
+    "python-dotenv>=1.0.1",
+]
+
+[project.scripts]
+ayaka = "ayaka.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

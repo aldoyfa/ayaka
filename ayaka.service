@@ -1,0 +1,17 @@
+[Unit]
+Description=Ayaka Academic Assistant & Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+User=nagikaz
+WorkingDirectory=/home/nagikaz/Data/Documents/AI-Workspace/projects/ayaka
+ExecStart=/home/nagikaz/Data/Documents/AI-Workspace/projects/ayaka/.venv/bin/python -m ayaka.main
+Restart=always
+RestartSec=10
+EnvironmentFile=/home/nagikaz/Data/Documents/AI-Workspace/projects/ayaka/.env
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,77 @@
+{
+  "system": {
+    "timezone": "Asia/Jakarta",
+    "database_path": "data/ayaka_state.db",
+    "dialogue_file": "dialogues.json",
+    "task_filters_file": "task_filters.json"
+  },
+  "gmail": {
+    "monitor_domains": [
+      "itb.ac.id",
+      "mahasiswa.itb.ac.id"
+    ],
+    "important_keywords": [
+      "assignment",
+      "exam",
+      "midterm",
+      "final",
+      "deadline",
+      "announcement",
+      "lecture",
+      "grade",
+      "score",
+      "lecturer",
+      "assistant",
+      "quiz",
+      "practicum",
+      "revision",
+      "cancelled",
+      "schedule",
+      "tugas",
+      "ujian",
+      "uts",
+      "uas",
+      "pengumuman",
+      "kuliah",
+      "nilai",
+      "dosen",
+      "asistensi",
+      "kuis",
+      "praktikum",
+      "revisi",
+      "batal",
+      "jadwal"
+    ],
+    "max_results": 15,
+    "poll_interval_minutes": 5
+  },
+  "scheduler": {
+    "academic_sync_interval_minutes": 30,
+    "reminder_poll_interval_seconds": 60
+  },
+  "platforms": {
+    "edunex": {
+      "base_url": "https://edunex.itb.ac.id",
+      "period_id": 26,
+      "enabled": true
+    },
+    "six": {
+      "base_url": "https://six.itb.ac.id",
+      "student_id": "18223113",
+      "semester_code": "2026-1",
+      "enabled": true
+    },
+    "omnicampus": {
+      "base_url": "https://edu.omnicamp.us",
+      "course_ids": [170],
+      "enabled": true
+    }
+  },
+  "google": {
+    "calendar_id": "primary",
+    "tasks_list_id": "@default",
+    "schedule_calendar_id": "5fcc5f6e8055f705bee196c5f2edb626badfee2551ca19995ca4663e2a93c3b4@group.calendar.google.com",
+    "sync_calendar": false,
+    "sync_tasks": true
+  }
+}

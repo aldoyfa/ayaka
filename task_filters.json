@@ -1,0 +1,67 @@
+{
+  "_description": "Ayaka Academic Task Rules and Blacklist Configuration",
+  "criteria": {
+    "include_future_deadlines": true,
+    "include_unsubmitted_open": true,
+    "include_unsubmitted_lateable": true,
+    "max_past_deadline_days": 60
+  },
+  "blacklist": {
+    "task_ids": [
+      {
+        "id": 117570,
+        "reason": "BEAM Notation on NLP Project (dikumpulkan oleh anggota kelompok)"
+      },
+      {
+        "id": 112550,
+        "reason": "Praktikum Windows Forensics 1 (deadline 2025 / mahasiswa tahun sebelumnya)"
+      },
+      {
+        "id": 959,
+        "reason": "HW1 for Session2 (Omnicampus)"
+      },
+      {
+        "id": 1347,
+        "reason": "Questionnaire: Session1 (Omnicampus)"
+      },
+      {
+        "id": 1348,
+        "reason": "Questionnaire: Session2 (Omnicampus)"
+      }
+    ],
+    "keywords": [],
+    "courses": []
+  },
+  "courses": [
+    {
+      "id": 94598,
+      "code": "IF4031",
+      "name": "Distributed Application Architecture"
+    },
+    {
+      "id": 94572,
+      "code": "IF4071",
+      "name": "Speech Processing"
+    },
+    {
+      "id": 95627,
+      "code": "IF5152",
+      "name": "Computer Vision"
+    },
+    {
+      "id": 95631,
+      "code": "IF5153",
+      "name": "Natural Language Processing"
+    },
+    {
+      "id": 95323,
+      "code": "II4023",
+      "name": "Digital Forensics"
+    },
+    {
+      "id": 95326,
+      "code": "II4091",
+      "name": "Final Project Proposal"
+    }
+  ]
+}

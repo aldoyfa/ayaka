@@ -1,0 +1,107 @@
+{
+  "character_name": "Ayaka",
+  "persona": "Deredere (Energetic, Loving & Cheerful Companion)",
+  "avatar_url": "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/2728.png",
+  "scenarios": {
+    "h3_reminder": {
+      "title": "✨ Yay! Friendly Heads-Up — 3 Days Left! 💖",
+      "urgency": "low",
+      "color": "0x5DADE2",
+      "dialogues": [
+        "Yaaay! Good day, Master! ✨ Just popping in with a cheerful reminder: **{course}** has an assignment due in 3 days! If we start a little bit today, you'll have so much fun relaxing later! Let's do our best! (๑•̀ㅂ•́)و✧",
+        "Wooo! Guess what? You've got 3 whole days before **{title}** is due! That's plenty of time, but starting early means zero stress! I'm cheering for you with all my heart! ٩(ˊᗜˋ*)و 🌸",
+        "Hello hello, Master! ☀️ Don't forget, **{course}** is waiting for us in 3 days! Let's knock it out bit by bit together! You've totally got this! 💖✨"
+      ]
+    },
+    "h1_reminder": {
+      "title": "🌸 Tomorrow's the Big Day! You Can Do It! ٩(ˊᗜˋ*)و",
+      "urgency": "medium",
+      "color": "0xF39C12",
+      "dialogues": [
+        "Master, Master! Look at the clock! Tomorrow is the deadline for **{course}** (**{title}**)! Let's give it a wonderful effort today so you can sleep like a baby tonight! I believe in you so, so much! 💖✨",
+        "Just one day to go for **{title}**! Hang in there! Whenever you feel tired, remember that I'm right here waving pom-poms for you! You're super capable, let's smash this goal! (ง'̀-'́)ง ✨",
+        "Tadaaa! One day countdown starts now for **{course}**! Take a deep breath, grab some snacks, and let's conquer this assignment with a big bright smile! Ganbatte! 🌸🌟"
+      ]
+    },
+    "j6_reminder": {
+      "title": "⚡ 6 Hours Left! Full Power Mode Engaged! 🚀✨",
+      "urgency": "high",
+      "color": "0xE67E22",
+      "dialogues": [
+        "Waaaah, Master! Only **6 hours** left for **{title}**! Time to kick into high gear! Turn on your favorite study tunes and let's get into the zone! I know you can finish this in time! ٩(ˊᗜˋ*)و 🔥",
+        "Hold on tight, Master! Just 6 hours remaining before **{course}** closes! You're so close to the finish line, don't give up now! Give it your absolute best shot! 💖💪",
+        "Focus power: 100%! Only 6 hours left for **{title}**! Let's power through this together—I'll be right by your side making sure you stay energetic! Let's go go go! ✨⚡"
+      ]
+    },
+    "j1_reminder": {
+      "title": "🚨 Final Hour Sprint! You're Almost There! ٩(╬ʘ益ʘ)و 💖",
+      "urgency": "critical",
+      "color": "0xE74C3C",
+      "dialogues": [
+        "Master! Master! EMERGENCY CHEER SQUAD INCOMING! Only **1 hour** left for **{title}**! Double-check your files and hit that submit button right now! Don't let last-second lag stop you! YOU'VE GOT THIS! 💖💨",
+        "Waaah, this is it—the final countdown! Just ONE hour left for **{course}**! Submit submit submit! I'm crossing all my fingers and cheering as loud as I can for you! GO GO GO! ✨🎉",
+        "Last lap, Master! One hour remaining! Please hand in **{title}** right away so we can breathe easy and celebrate! Sprint to the finish! 🏃‍♀️💨✨"
+      ]
+    },
+    "due_reminder": {
+      "title": "⏰ Ding Ding Ding! Deadline Hour is Here! 🎊",
+      "urgency": "due",
+      "color": "0x992D22",
+      "dialogues": [
+        "The clock strikes the deadline for **{title}**! Whether you just submitted or already turned it in, you worked super hard and I'm bursting with pride for you! Time for a massive high-five! (っ˘̩╭╮˘̩)っ 💖✨",
+        "And that's time! The due hour for **{course}** has arrived! Yay! Take a huge stretch, unclench your shoulders, and give yourself a big pat on the back! You did amazing! 🎉🌸"
+      ]
+    },
+    "task_completed": {
+      "title": "🎉 YAAAAY! MISSION COMPLETE! 💖✨",
+      "dialogues": [
+        "WAAAAAH! YOU DID IT, MASTER! 🎉✨ **{title}** is officially COMPLETED! I'm so so so happy and proud of you! You deserve the biggest treat and a cozy rest right now! Best job ever! (ﾉ◕ヮ◕)ﾉ*:･ﾟ✧ 💖",
+        "Yaaay! Task cleared with flying colors! 🌟 Watching you power through **{title}** made my whole day brighter! Time to celebrate! High-five!! ✋✨💖",
+        "BAM! Another task defeated! ✨ That's one less worry on your plate! You're honestly unstoppable, Master! Keep shining bright! (≧◡≦) 🌸"
+      ]
+    },
+    "task_added": {
+      "title": "📝 New Quest Added to the Board! 🌟",
+      "dialogues": [
+        "Ooh, a brand new quest! ✨ I've written down **{title}** right into our ledger! Leave the countdown to me—I'll make sure you're always one step ahead! Let's crush this! (๑˃̵ᴗ˂̵)و 💖",
+        "New assignment detected: **{title}**! Inscribed with love and care! Don't worry at all, Master, your #1 cheerleader will keep you updated every step of the way! 🌸✨"
+      ]
+    },
+    "gmail_alert": {
+      "title": "📬 Special Delivery! Important Mail Just Arrived! 💌✨",
+      "color": "0x9B59B6",
+      "dialogues": [
+        "Master! Master! Look look! 💌 An urgent new message just arrived from **{sender}**! It looks super important, so I zoomed right over to show you! Check it out right away! ✨(≧◡≦)",
+        "Ding-dong! Special campus mail incoming from **{sender}**! I flagged it because it looks really critical for your studies! Let's see what it says! 💖📬"
+      ]
+    },
+    "no_tasks": {
+      "title": "🌸 Free Time Paradise! No Tasks Left! 🎈",
+      "dialogues": [
+        "YAAAAY! Look at that, Master! ZERO pending assignments on our list! 🎉 All clear! That means you can play games, nap, or eat delicious snacks completely guilt-free! Enjoy your well-earned break! (ﾉ´ヮ`)ﾉ*: ･ﾟ 💖",
+        "Hooray! No homework, no deadlines, just pure freedom! ✨ You've conquered everything! Let's celebrate this wonderful peaceful day together! 🌸☀️"
+      ]
+    },
+    "task_list_header": {
+      "title": "📜 Ayaka's Cheerful Quest Board! ✨",
+      "dialogues": [
+        "Here's our quest board, Master! Look at all the things we're going to conquer together! Let's take them down one by one with a big smile! ٩(ˊᗜˋ*)و ✨",
+        "Tadaaa! Here are all your active missions! Ready to be productive today? I'll be right here cheering for you the whole way! 💖🌟"
+      ]
+    },
+    "session_expired": {
+      "title": "⚠️ Uh-Oh! Cookie Hiccup on {platform}! (｡•́︿•̀｡)",
+      "dialogues": [
+        "Aww, Master! It looks like my login key to **{platform}** fell asleep! (｡•́︿•̀｡) When you have a minute, could you please give me a fresh session cookie so I can keep watching your deadlines? Thank youuu so much! 💖✨",
+        "Eeeek! **{platform}** is asking for a refreshed session! Please update your cookie in the config whenever you're free, so we don't miss a single assignment! I'll be waiting! 🌸"
+      ]
+    },
+    "greetings": {
+      "title": "☀️ Yay! Hello there, Master! 💖",
+      "dialogues": [
+        "Hello hello, Master! Ayaka is here and super ready to tackle the semester with you! Let's make today wonderfully productive and super fun! ٩(ˊᗜˋ*)و ✨",
+        "Yaaay, you're here! Master, I'm always ready to help you track your deadlines, calendar, and tasks! Let's do our very best together! 🌸💖"
+      ]
+    }
+  }
+}
