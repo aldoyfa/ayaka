@@ -74,3 +74,34 @@ def test_views_initialization(test_bot):
     page_view = TaskPaginationView(test_bot, [task], author_id=123)
     embed = page_view.build_embed()
     assert "Assignment NLP" in embed.fields[0].name
+
+
+@pytest.mark.anyio
+async def test_admin_cog_slash_session(test_bot, monkeypatch):
+    from unittest.mock import AsyncMock, patch
+    from discord import app_commands
+
+    admin_cog = AdminCog(test_bot)
+
+    interaction = MagicMock()
+    interaction.user.id = test_bot.config.discord.user_id = 99999
+    interaction.response.defer = AsyncMock()
+    interaction.followup.send = AsyncMock()
+
+    choice = app_commands.Choice(name="Omnicampus (Bearer Token)", value="omnicampus")
+
+    with patch("ayaka.config.update_env_variable", return_value=True), \
+         patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get, \
+         patch("ayaka.scheduler.run_sync_cycle_async", new_callable=AsyncMock) as mock_sync:
+        
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_get.return_value = mock_resp
+
+        # Should execute cleanly without TypeError (a coroutine was expected)
+        await admin_cog.slash_session.callback(admin_cog, interaction, choice, "Bearer my_new_token_123")
+
+        assert test_bot.config.academic.omnicampus_token == "my_new_token_123"
+        interaction.response.defer.assert_awaited_once()
+        interaction.followup.send.assert_awaited_once()
+

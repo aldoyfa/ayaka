@@ -353,9 +353,8 @@ class AcademicCog(commands.Cog, name="Academic"):
 
     @commands.command(name="sync")
     async def cmd_sync(self, ctx: commands.Context, platform: str = "all") -> None:
-        from ayaka.scheduler import run_sync_cycle
-        loop = asyncio.get_running_loop()
-        stats = await loop.run_in_executor(None, run_sync_cycle, self.bot.config, self.bot.db, platform, self.bot.google_sync)
+        from ayaka.scheduler import run_sync_cycle_async
+        stats = await run_sync_cycle_async(self.bot.config, self.bot.db, platform, self.bot.google_sync)
         embed = build_sync_embed(platform, stats, self.bot.get_author_icon())
         await ctx.send(embed=embed)
 

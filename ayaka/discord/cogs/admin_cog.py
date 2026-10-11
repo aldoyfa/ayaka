@@ -196,9 +196,8 @@ class AdminCog(commands.Cog, name="Admin"):
             except Exception as e:
                 verif_msg = f"🟡 Saved to `.env`, but test ping returned: {str(e)}"
 
-        from ayaka.scheduler import run_sync_cycle
-        loop = asyncio.get_running_loop()
-        asyncio.create_task(loop.run_in_executor(None, run_sync_cycle, self.bot.config, self.bot.db, plat_val, self.bot.google_sync))
+        from ayaka.scheduler import run_sync_cycle_async
+        asyncio.create_task(run_sync_cycle_async(self.bot.config, self.bot.db, plat_val, self.bot.google_sync))
 
         embed = discord.Embed(
             title=f"🌸 {platform.name} Session Refreshed! ✨",
@@ -313,9 +312,8 @@ class AdminCog(commands.Cog, name="Admin"):
         with self.bot.db._conn() as conn:
             conn.execute("DELETE FROM session_alerts WHERE platform = ?", (plat_val,))
 
-        from ayaka.scheduler import run_sync_cycle
-        loop = asyncio.get_running_loop()
-        asyncio.create_task(loop.run_in_executor(None, run_sync_cycle, self.bot.config, self.bot.db, plat_val, self.bot.google_sync))
+        from ayaka.scheduler import run_sync_cycle_async
+        asyncio.create_task(run_sync_cycle_async(self.bot.config, self.bot.db, plat_val, self.bot.google_sync))
 
         reply = f"🌸 Master, session for `{plat_val.upper()}` has been updated in `.env` and active memory! ✨"
         try:
