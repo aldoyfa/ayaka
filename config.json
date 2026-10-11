@@ -49,6 +49,25 @@
     "academic_sync_interval_minutes": 30,
     "reminder_poll_interval_seconds": 60
   },
+  "reminders": {
+    "tasks": {
+      "enabled": true,
+      "milestones": [
+        { "key": "h3", "label": "H-3 (3 hari sebelum)", "hours": 72 },
+        { "key": "h1", "label": "H-1 (24 jam sebelum)", "hours": 24 },
+        { "key": "j6", "label": "J-6 (6 jam sebelum)", "hours": 6 },
+        { "key": "j1", "label": "J-1 (1 jam sebelum)", "hours": 1 },
+        { "key": "due", "label": "Due (Batas waktu tiba)", "hours": 0 }
+      ]
+    },
+    "lectures": {
+      "enabled": true,
+      "morning_briefing_hour": 5,
+      "morning_briefing_tasks_lookahead_hours": 36,
+      "class_start_reminder_minutes_before": 0,
+      "attendance_reminder_minutes_before_end": 10
+    }
+  },
   "platforms": {
     "edunex": {
       "base_url": "https://edunex.itb.ac.id",

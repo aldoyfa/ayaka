@@ -100,3 +100,39 @@ def test_dynamic_academic_config(tmp_path, monkeypatch):
     assert cfg_env.academic.six_semester_code == "2028-1"
     assert cfg_env.academic.omnicampus_course_ids == [201, 202, 203]
 
+
+def test_config_reminders_from_config_json(tmp_path):
+    config_file = tmp_path / "config.json"
+    config_content = {
+        "reminders": {
+            "tasks": {
+                "enabled": True,
+                "milestones": [
+                    {"key": "h2", "label": "H-2", "hours": 48},
+                    {"key": "j12", "label": "J-12", "hours": 12},
+                    {"key": "due", "label": "Due", "hours": 0},
+                ],
+            },
+            "lectures": {
+                "enabled": True,
+                "morning_briefing_hour": 6,
+                "morning_briefing_tasks_lookahead_hours": 24,
+                "class_start_reminder_minutes_before": 5,
+                "attendance_reminder_minutes_before_end": 15,
+            },
+        }
+    }
+    with open(config_file, "w", encoding="utf-8") as f:
+        json.dump(config_content, f)
+
+    cfg = Config.load(base_dir=tmp_path)
+    assert cfg.reminders.tasks.enabled is True
+    assert len(cfg.reminders.tasks.milestones) == 3
+    assert cfg.reminders.tasks.milestones[0].key == "h2"
+    assert cfg.reminders.tasks.milestones[0].hours == 48.0
+    assert cfg.reminders.lectures.morning_briefing_hour == 6
+    assert cfg.reminders.lectures.morning_briefing_tasks_lookahead_hours == 24.0
+    assert cfg.reminders.lectures.class_start_reminder_minutes_before == 5
+    assert cfg.reminders.lectures.attendance_reminder_minutes_before_end == 15
+
+

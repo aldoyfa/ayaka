@@ -151,15 +151,27 @@ def run_sync_cycle(
 
 
 
-async def reminder_loop(bot: AyakaBot, db: Database, interval_seconds: int = 60) -> None:
-    """Continuously evaluates and sends reminder milestones (H-3, H-1, J-6, J-1, Due)."""
+async def reminder_loop(
+    bot: AyakaBot,
+    db: Database,
+    interval_seconds: int = 60,
+    config: Optional[Config] = None,
+) -> None:
+    """Continuously evaluates and sends reminder milestones configured in config.json."""
     await bot.wait_until_ready()
     logger.info("Ayaka reminder loop started.")
 
+    cfg: Optional[Config] = config or getattr(bot, "config", None)
+
     while not bot.is_closed():
         try:
+            if cfg and not cfg.reminders.tasks.enabled:
+                await asyncio.sleep(interval_seconds)
+                continue
+
+            milestones = cfg.reminders.tasks.milestones if cfg else None
             now_utc = datetime.now(timezone.utc)
-            needing = await asyncio.to_thread(db.get_tasks_needing_reminders, now_utc)
+            needing = await asyncio.to_thread(db.get_tasks_needing_reminders, now_utc, milestones)
             for task, milestone in needing:
                 logger.info(f"Triggering reminder [{milestone}] for task {task['id']} - {task['title']}")
                 sent = await bot.send_task_reminder(task, milestone)
@@ -235,14 +247,17 @@ async def schedule_reminder_loop(
     schedule_service: Any,
     db: Database,
     interval_seconds: int = 60,
+    config: Optional[Config] = None,
 ) -> None:
-    """Continuously evaluates and sends lecture schedule reminders:
-    1. Daily morning briefing at 05:00 WIB (today's schedule summary & tasks due soon)
-    2. Class start proactive reminder (when class starts)
-    3. Attendance proactive reminder (10 minutes before class ends)
+    """Continuously evaluates and sends lecture schedule reminders based on config.json:
+    1. Daily morning briefing (configurable hour in config.json, default 05:00 WIB)
+    2. Class start proactive reminder (configurable offset before start in config.json)
+    3. Attendance proactive reminder (configurable offset before end in config.json)
     """
     await bot.wait_until_ready()
     logger.info("Ayaka lecture schedule reminder loop started.")
+
+    cfg: Optional[Config] = config or getattr(bot, "config", None)
 
     cached_date: Optional[date] = None
     cached_events: list[dict[str, Any]] = []
@@ -250,10 +265,20 @@ async def schedule_reminder_loop(
 
     while not bot.is_closed():
         try:
+            if cfg and not cfg.reminders.lectures.enabled:
+                await asyncio.sleep(interval_seconds)
+                continue
+
             tz = schedule_service.timezone_obj
             now_local = datetime.now(tz)
             today = now_local.date()
             today_str = today.strftime("%Y-%m-%d")
+
+            # Dynamic parameters from config.json
+            morning_hour = cfg.reminders.lectures.morning_briefing_hour if cfg else 5
+            tasks_lookahead = cfg.reminders.lectures.morning_briefing_tasks_lookahead_hours if cfg else 36.0
+            start_offset_min = cfg.reminders.lectures.class_start_reminder_minutes_before if cfg else 0
+            attend_offset_min = cfg.reminders.lectures.attendance_reminder_minutes_before_end if cfg else 10
 
             # Refresh today's events if date changed or cache older than 10 minutes
             if (
@@ -265,12 +290,12 @@ async def schedule_reminder_loop(
                 cached_date = today
                 last_fetch_time = now_local
 
-            # 1. Daily morning briefing at 05:00 WIB
-            if now_local.hour >= 5:
+            # 1. Daily morning briefing
+            if now_local.hour >= morning_hour:
                 morning_rem_id = f"morning:{today_str}"
                 if not await asyncio.to_thread(db.is_schedule_reminder_sent, morning_rem_id):
-                    logger.info(f"Triggering 05:00 morning lecture briefing for {today_str} ({len(cached_events)} classes)")
-                    tasks_due_soon = await asyncio.to_thread(db.get_tasks_due_soon, 36.0)
+                    logger.info(f"Triggering morning lecture briefing for {today_str} at hour {now_local.hour} ({len(cached_events)} classes)")
+                    tasks_due_soon = await asyncio.to_thread(db.get_tasks_due_soon, tasks_lookahead)
                     sent = await bot.send_schedule_morning_briefing(today, cached_events, tasks_due_soon)
                     if sent:
                         await asyncio.to_thread(
@@ -286,8 +311,9 @@ async def schedule_reminder_loop(
                 start_dt = ev["start_dt"]
                 end_dt = ev["end_dt"]
 
-                # A. Class Start Reminder (within -120s to +300s of start time)
-                diff_start = (now_local - start_dt).total_seconds()
+                # A. Class Start Reminder (target_start = start_dt - offset)
+                target_start = start_dt - timedelta(minutes=start_offset_min)
+                diff_start = (now_local - target_start).total_seconds()
                 if -120 <= diff_start <= 300 and now_local < end_dt:
                     start_rem_id = f"start:{ev_id}:{today_str}"
                     if not await asyncio.to_thread(db.is_schedule_reminder_sent, start_rem_id):
@@ -300,11 +326,11 @@ async def schedule_reminder_loop(
                                 reminder_type="start",
                                 event_id=ev_id,
                                 event_title=ev["summary"],
-                                scheduled_for=start_dt.isoformat(),
+                                scheduled_for=target_start.isoformat(),
                             )
 
-                # B. Attendance / Presensi Reminder (10 minutes before class ends)
-                attend_dt = end_dt - timedelta(minutes=10)
+                # B. Attendance / Presensi Reminder (target_attend = end_dt - offset)
+                attend_dt = end_dt - timedelta(minutes=attend_offset_min)
                 diff_attend = (now_local - attend_dt).total_seconds()
                 if -120 <= diff_attend <= 300 and now_local < end_dt:
                     attend_rem_id = f"attendance:{ev_id}:{today_str}"

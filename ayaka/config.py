@@ -122,6 +122,40 @@ class SchedulerConfig:
 
 
 @dataclass
+class TaskMilestoneConfig:
+    key: str
+    label: str = ""
+    hours: float = 0.0
+
+
+@dataclass
+class TaskRemindersConfig:
+    enabled: bool = True
+    milestones: List[TaskMilestoneConfig] = field(default_factory=lambda: [
+        TaskMilestoneConfig(key="h3", label="H-3 (3 hari sebelum)", hours=72.0),
+        TaskMilestoneConfig(key="h1", label="H-1 (24 jam sebelum)", hours=24.0),
+        TaskMilestoneConfig(key="j6", label="J-6 (6 jam sebelum)", hours=6.0),
+        TaskMilestoneConfig(key="j1", label="J-1 (1 jam sebelum)", hours=1.0),
+        TaskMilestoneConfig(key="due", label="Due (Batas waktu tiba)", hours=0.0),
+    ])
+
+
+@dataclass
+class LectureRemindersConfig:
+    enabled: bool = True
+    morning_briefing_hour: int = 5
+    morning_briefing_tasks_lookahead_hours: float = 36.0
+    class_start_reminder_minutes_before: int = 0
+    attendance_reminder_minutes_before_end: int = 10
+
+
+@dataclass
+class RemindersConfig:
+    tasks: TaskRemindersConfig = field(default_factory=TaskRemindersConfig)
+    lectures: LectureRemindersConfig = field(default_factory=LectureRemindersConfig)
+
+
+@dataclass
 class AIConfig:
     api_key: str = ""
     provider: str = "gemini"
@@ -141,6 +175,7 @@ class Config:
     academic: AcademicConfig
     scheduler: SchedulerConfig
     ai: AIConfig
+    reminders: RemindersConfig = field(default_factory=RemindersConfig)
     database_path: str = "data/ayaka_state.db"
     dialogue_file: str = "dialogues.json"
     task_filters_file: str = "task_filters.json"
@@ -245,6 +280,49 @@ class Config:
             omnicampus_base_url=omni_cfg.get("base_url", "https://edu.omnicamp.us"),
         )
 
+        # Reminders configuration
+        rem_data = c_data.get("reminders", {})
+        task_rem_data = rem_data.get("tasks", {})
+        raw_milestones = task_rem_data.get("milestones", [])
+        milestones_list: list[TaskMilestoneConfig] = []
+        if isinstance(raw_milestones, list):
+            for m in raw_milestones:
+                if isinstance(m, dict) and "key" in m:
+                    milestones_list.append(
+                        TaskMilestoneConfig(
+                            key=str(m["key"]).strip().lower(),
+                            label=str(m.get("label", m["key"])),
+                            hours=float(m.get("hours", 0)),
+                        )
+                    )
+        if not milestones_list:
+            milestones_list = [
+                TaskMilestoneConfig(key="h3", label="H-3 (3 hari sebelum)", hours=72.0),
+                TaskMilestoneConfig(key="h1", label="H-1 (24 jam sebelum)", hours=24.0),
+                TaskMilestoneConfig(key="j6", label="J-6 (6 jam sebelum)", hours=6.0),
+                TaskMilestoneConfig(key="j1", label="J-1 (1 jam sebelum)", hours=1.0),
+                TaskMilestoneConfig(key="due", label="Due (Batas waktu tiba)", hours=0.0),
+            ]
+
+        task_rem_cfg = TaskRemindersConfig(
+            enabled=bool(task_rem_data.get("enabled", True)),
+            milestones=milestones_list,
+        )
+
+        lec_rem_data = rem_data.get("lectures", {})
+        lec_rem_cfg = LectureRemindersConfig(
+            enabled=bool(lec_rem_data.get("enabled", True)),
+            morning_briefing_hour=int(lec_rem_data.get("morning_briefing_hour", 5)),
+            morning_briefing_tasks_lookahead_hours=float(lec_rem_data.get("morning_briefing_tasks_lookahead_hours", 36.0)),
+            class_start_reminder_minutes_before=int(lec_rem_data.get("class_start_reminder_minutes_before", 0)),
+            attendance_reminder_minutes_before_end=int(lec_rem_data.get("attendance_reminder_minutes_before_end", 10)),
+        )
+
+        reminders_cfg = RemindersConfig(
+            tasks=task_rem_cfg,
+            lectures=lec_rem_cfg,
+        )
+
         return cls(
             discord=DiscordConfig(
                 bot_token=os.getenv("DISCORD_BOT_TOKEN", "").strip(),
@@ -290,6 +368,7 @@ class Config:
                 model=(os.getenv("AI_MODEL") or os.getenv("GEMINI_MODEL") or "gemini-3.5-flash").strip(),
                 base_url=os.getenv("AI_BASE_URL", "").strip(),
             ),
+            reminders=reminders_cfg,
             database_path=db_path,
             dialogue_file=dialogue_file,
             task_filters_file=task_filters_file,

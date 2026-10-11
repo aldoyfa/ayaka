@@ -216,19 +216,38 @@ class TaskRepository(BaseRepository):
             conn.execute(f"UPDATE tasks SET {col} = 1 WHERE id = ?", (task_id,))
 
     def get_tasks_needing_reminders(
-        self, now_dt: datetime
+        self, now_dt: datetime, milestones: Optional[list[Any]] = None
     ) -> List[Tuple[dict[str, Any], str]]:
-        """Evaluate all active tasks against milestone thresholds.
+        """Evaluate all active tasks against configured milestone thresholds.
 
-        Milestones:
+        Accepts dynamic milestones list from config.json (or default milestones):
         - H-3: Remaining <= 72h and > 24h
         - H-1: Remaining <= 24h and > 6h
         - J-6: Remaining <= 6h and > 1h
         - J-1: Remaining <= 1h and > 0h
-        - Due: Remaining <= 0h and >= -2h (at deadline / start)
+        - Due: Remaining <= 0h and >= -2h
 
         Returns list of tuples: (task_dict, milestone_key).
         """
+        parsed_ms: list[tuple[str, float]] = []
+        if milestones:
+            for m in milestones:
+                if hasattr(m, "key") and hasattr(m, "hours"):
+                    parsed_ms.append((str(m.key).strip().lower(), float(m.hours)))
+                elif isinstance(m, dict) and "key" in m:
+                    parsed_ms.append((str(m["key"]).strip().lower(), float(m.get("hours", 0))))
+        if not parsed_ms:
+            parsed_ms = [
+                ("h3", 72.0),
+                ("h1", 24.0),
+                ("j6", 6.0),
+                ("j1", 1.0),
+                ("due", 0.0),
+            ]
+
+        # Sort descending by hours
+        parsed_ms.sort(key=lambda x: x[1], reverse=True)
+
         pending = self.list_tasks(include_completed=False)
         due_alerts: list[Tuple[dict[str, Any], str]] = []
 
@@ -243,16 +262,20 @@ class TaskRepository(BaseRepository):
 
             hours_remaining = (due_dt - now_dt).total_seconds() / 3600.0
 
-            if hours_remaining <= 0 and hours_remaining >= -2.0 and not task["reminder_due_sent"]:
-                due_alerts.append((task, "due"))
-            elif 0 < hours_remaining <= 1.0 and not task["reminder_j1_sent"]:
-                due_alerts.append((task, "j1"))
-            elif 1.0 < hours_remaining <= 6.0 and not task["reminder_j6_sent"]:
-                due_alerts.append((task, "j6"))
-            elif 6.0 < hours_remaining <= 24.0 and not task["reminder_h1_sent"]:
-                due_alerts.append((task, "h1"))
-            elif 24.0 < hours_remaining <= 72.0 and not task["reminder_h3_sent"]:
-                due_alerts.append((task, "h3"))
+            for i, (m_key, upper_hours) in enumerate(parsed_ms):
+                flag_col = f"reminder_{m_key}_sent"
+                if task.get(flag_col, 0):
+                    continue
+
+                if upper_hours <= 0:
+                    if upper_hours >= hours_remaining >= -2.0:
+                        due_alerts.append((task, m_key))
+                        break
+                else:
+                    lower_hours = parsed_ms[i + 1][1] if (i + 1 < len(parsed_ms)) else 0.0
+                    if lower_hours < hours_remaining <= upper_hours:
+                        due_alerts.append((task, m_key))
+                        break
 
         return due_alerts
 

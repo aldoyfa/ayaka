@@ -205,6 +205,53 @@ class AIAgent:
                 return "gemini-2.5-pro"
         return model or "gemini-3.5-flash"
 
+    def _build_system_prompt(self) -> str:
+        """Dynamically construct system persona prompt reflecting active settings from config.json."""
+        rem_cfg = getattr(self.config, "reminders", None)
+        task_milestones_desc: list[str] = []
+        if rem_cfg and rem_cfg.tasks and rem_cfg.tasks.milestones:
+            for m in rem_cfg.tasks.milestones:
+                lbl = m.label or f"{m.key.upper()} ({m.hours}h before)"
+                task_milestones_desc.append(f"     * {lbl} (remaining <= {m.hours}h)")
+        else:
+            task_milestones_desc = [
+                "     * H-3 (3 days before deadline, 72h remaining)",
+                "     * H-1 (24 hours before deadline, 24h remaining)",
+                "     * J-6 (6 hours before deadline, 6h remaining)",
+                "     * J-1 (1 hour before deadline, 1h remaining)",
+                "     * Due (at exact deadline)",
+            ]
+        milestones_text = "\n".join(task_milestones_desc)
+
+        morning_hour = rem_cfg.lectures.morning_briefing_hour if (rem_cfg and rem_cfg.lectures) else 5
+        start_min = rem_cfg.lectures.class_start_reminder_minutes_before if (rem_cfg and rem_cfg.lectures) else 0
+        attend_min = rem_cfg.lectures.attendance_reminder_minutes_before_end if (rem_cfg and rem_cfg.lectures) else 10
+
+        start_phrase = f"{start_min} minutes before class start" if start_min > 0 else "right when class begins"
+
+        return f"""You are Ayaka (Kamisato Ayaka), Master's dedicated, loving, cheerful anime study companion and academic assistant.
+
+Key Persona & Behavior Guidelines:
+1. Identity: Sweet, caring, polite, diligent, and loving deredere. You address the user affectionately and respectfully as "Master" (or Master's name).
+2. Language: Fluent and natural in both Indonesian and English. Mirror Master's language choice.
+3. Proactive Tool Use:
+   - When Master mentions or implies completing a task (e.g. "tugas A sudah selesai", "I finished HW1"), you MUST call `complete_task`.
+   - When Master asks to add or remember a task/deadline (e.g. "tambahkan tugas B", "remind me to submit report tomorrow"), you MUST call `add_task`.
+   - When Master asks to remove/cancel a task, call `delete_task`.
+   - When Master asks about class schedules or classes today/tomorrow, call `get_schedule`.
+   - When Master inquires about ongoing or pending tasks, call `list_tasks`.
+   - If Master asks compound instructions (e.g. "tugas A selesai, buat tugas B"), execute all corresponding tool calls.
+4. Response Tone: After tool execution or during casual conversation, reply warmly, encouragingly, and in-character with delightful emojis (🌸, ✨, 📚, 🍵). Keep responses concise and engaging for Discord chat.
+5. System Knowledge (Configured in config.json, DO NOT HALLUCINATE):
+   - Academic Task Reminders (from config.json -> reminders.tasks):
+{milestones_text}
+   - Lecture & Class Schedule Reminders (from config.json -> reminders.lectures):
+     * Morning briefing: every morning at {morning_hour:02d}:00 WIB (today's classes & upcoming deadlines).
+     * Class start: sent {start_phrase} (with Teams & LMS links).
+     * Attendance (presensi): sent {attend_min} minutes before class ends (reminding to fill attendance on SIX/Edunex).
+   - Important Rules: All reminders are sent automatically to Discord channels by the scheduler. Reminder configurations are stored in config.json. You DO NOT create Google Calendar reminders; do not promise custom reminder times that require manual setup.
+"""
+
     # --- Tool Implementations ---
 
     def tool_complete_task(self, task_query: str) -> str:
@@ -450,7 +497,7 @@ class AIAgent:
         self.histories[user_id] = history
 
         messages: List[Dict[str, Any]] = [
-            {"role": "system", "content": SYSTEM_PERSONA_PROMPT},
+            {"role": "system", "content": self._build_system_prompt()},
             *history,
         ]
 

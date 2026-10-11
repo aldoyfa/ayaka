@@ -202,8 +202,10 @@ class Database:
     def mark_reminder_sent(self, task_id: str, milestone: str) -> None:
         self.tasks.mark_reminder_sent(task_id, milestone)
 
-    def get_tasks_needing_reminders(self, now_dt: datetime) -> List[Tuple[dict[str, Any], str]]:
-        return self.tasks.get_tasks_needing_reminders(now_dt)
+    def get_tasks_needing_reminders(
+        self, now_dt: datetime, milestones: Optional[List[Any]] = None
+    ) -> List[Tuple[dict[str, Any], str]]:
+        return self.tasks.get_tasks_needing_reminders(now_dt, milestones=milestones)
 
     def get_tasks_due_soon(self, hours: float = 36.0) -> List[dict[str, Any]]:
         return self.tasks.get_tasks_due_soon(hours)
