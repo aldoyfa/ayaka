@@ -359,3 +359,53 @@ def test_build_sync_embed():
     assert any("Updated Deadlines" in name for name in field_names)
     assert any("Expired Sessions" in name for name in field_names)
 
+
+def test_get_task_flexible_id_and_completed_filter(tmp_path):
+    db_file = tmp_path / "test_tasks.db"
+    db = Database(str(db_file))
+
+    # Insert 2 tasks: 1 pending, 1 completed
+    task1 = {
+        "id": "omnicampus:assignment:967",
+        "platform": "omnicampus",
+        "title": "Late Submission HW1",
+        "due_date": "2026-12-04T10:00:00",
+        "is_completed": 0,
+    }
+    task2 = {
+        "id": "edunex:task:112543",
+        "platform": "edunex",
+        "title": "Hands-On ELA",
+        "due_date": "2026-09-07T23:59:00",
+        "is_completed": 1,
+    }
+    db.upsert_task(task1)
+    db.upsert_task(task2)
+
+    # 1. Flexible lookup by suffix / number ID
+    found_exact = db.get_task("omnicampus:assignment:967")
+    assert found_exact is not None
+    assert found_exact["id"] == "omnicampus:assignment:967"
+
+    found_suffix = db.get_task("967")
+    assert found_suffix is not None
+    assert found_suffix["id"] == "omnicampus:assignment:967"
+
+    found_edunex = db.get_task("112543")
+    assert found_edunex is not None
+    assert found_edunex["id"] == "edunex:task:112543"
+
+    # 2. list_tasks(include_completed=False) should NEVER return task2
+    pending = db.list_tasks(include_completed=False)
+    assert len(pending) == 1
+    assert pending[0]["id"] == "omnicampus:assignment:967"
+
+    # 3. Once marked completed, task1 must disappear from list_tasks
+    db.mark_task_completed("omnicampus:assignment:967")
+    pending_after = db.list_tasks(include_completed=False)
+    assert len(pending_after) == 0
+
+    all_tasks = db.list_tasks(include_completed=True)
+    assert len(all_tasks) == 2
+
+

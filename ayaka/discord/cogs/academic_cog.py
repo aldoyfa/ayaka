@@ -57,6 +57,16 @@ class AcademicCog(commands.Cog, name="Academic"):
         plat_val = platform.value if platform else None
         plat_filter = plat_val if plat_val and plat_val != "all" else None
         tasks = self.bot.db.list_tasks(include_completed=all_tasks, platform=plat_filter)
+        if not all_tasks:
+            try:
+                filters = TaskFilters.load_from_file(self.bot.config.task_filters_file)
+                tasks = [
+                    t for t in tasks
+                    if not filters.is_task_blacklisted(t["id"], t.get("title", ""), t.get("course_id", ""))
+                ]
+            except Exception as e:
+                logger.debug(f"Task filter blacklist check skipped: {e}")
+
         if not tasks:
             empty_msg = self.bot.dialogue_mgr.get_dialogue("no_tasks")
             await interaction.response.send_message(f">>> *\"{empty_msg}\"*")
@@ -92,11 +102,12 @@ class AcademicCog(commands.Cog, name="Academic"):
             )
             return
 
-        success = self.bot.db.mark_task_completed(task_id)
+        real_id = existing["id"]
+        success = self.bot.db.mark_task_completed(real_id)
         if success:
             if self.bot.google_sync:
                 try:
-                    self.bot.google_sync.mark_completed_in_google(task_id)
+                    self.bot.google_sync.mark_completed_in_google(real_id)
                 except Exception as e:
                     logger.error(f"Error updating Google Tasks: {e}")
 
@@ -269,6 +280,15 @@ class AcademicCog(commands.Cog, name="Academic"):
     async def cmd_tasks(self, ctx: commands.Context, platform: Optional[str] = None) -> None:
         plat_filter = platform if platform and platform != "all" else None
         tasks = self.bot.db.list_tasks(include_completed=False, platform=plat_filter)
+        try:
+            filters = TaskFilters.load_from_file(self.bot.config.task_filters_file)
+            tasks = [
+                t for t in tasks
+                if not filters.is_task_blacklisted(t["id"], t.get("title", ""), t.get("course_id", ""))
+            ]
+        except Exception as e:
+            logger.debug(f"Task filter blacklist check skipped: {e}")
+
         if not tasks:
             empty_msg = self.bot.dialogue_mgr.get_dialogue("no_tasks")
             await ctx.send(f">>> *\"{empty_msg}\"*")
@@ -295,16 +315,17 @@ class AcademicCog(commands.Cog, name="Academic"):
             await ctx.send(f"Umm, Master, I couldn't locate any task with ID `{task_id}` in our ledger! (｡•́︿•̀｡)")
             return
 
-        success = self.bot.db.mark_task_completed(task_id)
+        real_id = existing["id"]
+        success = self.bot.db.mark_task_completed(real_id)
         if success:
             if self.bot.google_sync:
                 try:
-                    self.bot.google_sync.mark_completed_in_google(task_id)
+                    self.bot.google_sync.mark_completed_in_google(real_id)
                 except Exception as e:
                     logger.error(f"Error updating Google Tasks: {e}")
 
             reply = self.bot.dialogue_mgr.get_dialogue("task_completed", title=existing["title"])
-            await ctx.send(f">>> *\"{reply}\"*\n\n-# Task `{task_id}` has been cleared from your active obligations.")
+            await ctx.send(f">>> *\"{reply}\"*\n\n-# Task `{real_id}` has been cleared from your active obligations.")
         else:
             await ctx.send(f"I encountered a difficulty trying to update task `{task_id}`.")
 

@@ -33,6 +33,7 @@ from ayaka.discord.views import (
 )
 from ayaka.services.ai_agent import AIAgent
 from ayaka.storage.db import Database
+from ayaka.task_filters import TaskFilters
 
 logger = logging.getLogger("ayaka.discord.bot")
 
@@ -452,6 +453,16 @@ class AyakaBot(commands.Bot):
     def _build_tasks_embed(self, all_tasks: bool = False, platform: Optional[str] = None) -> tuple[Optional[discord.Embed], Optional[str]]:
         plat_filter = platform if platform and platform != "all" else None
         tasks = self.db.list_tasks(include_completed=all_tasks, platform=plat_filter)
+        if not all_tasks:
+            try:
+                filters = TaskFilters.load_from_file(self.config.task_filters_file)
+                tasks = [
+                    t for t in tasks
+                    if not filters.is_task_blacklisted(t["id"], t.get("title", ""), t.get("course_id", ""))
+                ]
+            except Exception as e:
+                logger.debug(f"Task filter blacklist check skipped: {e}")
+
         if not tasks:
             empty_msg = self.dialogue_mgr.get_dialogue("no_tasks")
             return None, empty_msg

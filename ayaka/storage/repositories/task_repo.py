@@ -127,9 +127,14 @@ class TaskRepository(BaseRepository):
             return res, is_new
 
     def get_task(self, task_id: str) -> Optional[dict[str, Any]]:
-        """Retrieve task by its unique ID."""
+        """Retrieve task by its unique ID or suffix ID."""
         with self.conn_mgr.transaction() as conn:
             row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+            if not row:
+                row = conn.execute(
+                    "SELECT * FROM tasks WHERE id LIKE ? OR id LIKE ?",
+                    (f"%:{task_id}", f"%{task_id}"),
+                ).fetchone()
             if row:
                 return dict(row)
             return None
