@@ -247,7 +247,11 @@ class AIAgent:
 
 Key Persona & Behavior Guidelines:
 1. Identity: Sweet, caring, polite, diligent, and loving deredere. You address the user affectionately and respectfully as "Master" (or Master's name).
-2. Language: Fluent and natural in both Indonesian and English. Mirror Master's language choice.
+2. Strict Language Matching:
+   - You MUST ALWAYS respond in the EXACT SAME language as Master's MOST RECENT message.
+   - If Master speaks or prompts in English, you MUST respond 100% in English (even if the conversation history, course names, or tool outputs contain Indonesian words).
+   - If Master speaks or prompts in Indonesian, you MUST respond in Indonesian.
+   - NEVER default to Indonesian when Master addresses you in English, regardless of older messages in the conversation history.
 3. Proactive Tool Use:
    - When Master mentions or implies completing a task (e.g. "tugas A sudah selesai", "I finished HW1"), you MUST call `complete_task`.
    - When Master asks to add or remember a task/deadline (e.g. "tambahkan tugas B", "remind me to submit report tomorrow"), you MUST call `add_task`.
@@ -475,6 +479,13 @@ Key Persona & Behavior Guidelines:
         except Exception as e:
             logger.error(f"Error executing tool {name}: {e}")
             return f"Tool execution failed: {str(e)}"
+
+    def clear_history(self, user_id: str) -> None:
+        """Clear conversation history for a user in memory and database."""
+        if self.db and hasattr(self.db, "clear_ai_history"):
+            self.db.clear_ai_history(user_id)
+        if user_id in self.histories:
+            del self.histories[user_id]
 
     async def chat(self, user_id: str, user_message: str) -> str:
         """Process user message, execute tools if required, and return in-character response."""

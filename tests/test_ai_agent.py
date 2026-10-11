@@ -106,3 +106,26 @@ def test_ai_agent_system_prompt_reflects_config(test_config, test_db):
     prompt = agent._build_system_prompt()
     assert "Advance preparation reminder: sent 15 minutes before class begins" in prompt
     assert "Morning briefing: every morning at 06:00 WIB" in prompt
+
+
+def test_ai_agent_clear_history(test_config, test_db):
+    agent = AIAgent(config=test_config, db=test_db)
+    user_id = "user_42"
+    test_db.save_ai_message(user_id, "user", "Hello Ayaka")
+    test_db.save_ai_message(user_id, "assistant", "Hello Master!")
+    agent.histories[user_id] = [{"role": "user", "content": "Hello Ayaka"}]
+
+    assert len(test_db.get_ai_history(user_id)) == 2
+    assert user_id in agent.histories
+
+    agent.clear_history(user_id)
+    assert len(test_db.get_ai_history(user_id)) == 0
+    assert user_id not in agent.histories
+
+
+def test_ai_agent_system_prompt_language_rule(test_config, test_db):
+    agent = AIAgent(config=test_config, db=test_db)
+    prompt = agent._build_system_prompt()
+    assert "Strict Language Matching" in prompt
+    assert "You MUST ALWAYS respond in the EXACT SAME language as Master's MOST RECENT message." in prompt
+

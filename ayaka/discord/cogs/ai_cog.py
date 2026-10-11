@@ -35,6 +35,13 @@ class AICog(commands.Cog, name="AI"):
             )
             return
 
+        if message.strip().lower() in ("reset", "clear", "reset chat"):
+            self.bot.ai_agent.clear_history(str(interaction.user.id))
+            await interaction.response.send_message(
+                "Master, I have refreshed our conversation memory! Let's start anew with a fresh cup of tea! (´｡• ᵕ •｡`) 🌸✨"
+            )
+            return
+
         await interaction.response.defer(thinking=True)
         reply = await self.bot.ai_agent.chat(str(interaction.user.id), message)
         if not reply or not reply.strip():
@@ -45,10 +52,23 @@ class AICog(commands.Cog, name="AI"):
             for chunk in [reply[i:i + 1950] for i in range(0, len(reply), 1950)]:
                 await interaction.followup.send(chunk)
 
+    @app_commands.command(name="reset", description="Reset your AI conversation history with Ayaka")
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.allowed_installs(guilds=True, users=True)
+    async def slash_reset(self, interaction: discord.Interaction) -> None:
+        self.bot.ai_agent.clear_history(str(interaction.user.id))
+        await interaction.response.send_message(
+            "Master, I have refreshed our conversation memory! Let's start anew with a fresh cup of tea! (´｡• ᵕ •｡`) 🌸✨"
+        )
+
     @commands.command(name="chat", aliases=["ask", "tanya"])
     async def cmd_chat(self, ctx: commands.Context, *, message: str) -> None:
         if not self.bot.ai_agent.is_configured:
             await ctx.send("Master, my AI intelligence core is currently resting! Please configure `AI_API_KEY` in `.env` first. (｡•́︿•̀｡)")
+            return
+        if message.strip().lower() in ("reset", "clear", "reset chat"):
+            self.bot.ai_agent.clear_history(str(ctx.author.id))
+            await ctx.reply("Master, I have refreshed our conversation memory! Let's start anew with a fresh cup of tea! (´｡• ᵕ •｡`) 🌸✨")
             return
         async with ctx.typing():
             reply = await self.bot.ai_agent.chat(str(ctx.author.id), message)
@@ -59,6 +79,11 @@ class AICog(commands.Cog, name="AI"):
             else:
                 for chunk in [reply[i:i + 1950] for i in range(0, len(reply), 1950)]:
                     await ctx.reply(chunk)
+
+    @commands.command(name="reset", aliases=["clear", "reset_chat"])
+    async def cmd_reset(self, ctx: commands.Context) -> None:
+        self.bot.ai_agent.clear_history(str(ctx.author.id))
+        await ctx.reply("Master, I have refreshed our conversation memory! Let's start anew with a fresh cup of tea! (´｡• ᵕ •｡`) 🌸✨")
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
