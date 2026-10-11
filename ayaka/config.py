@@ -143,9 +143,14 @@ class TaskRemindersConfig:
 @dataclass
 class LectureRemindersConfig:
     enabled: bool = True
+    morning_briefing_enabled: bool = True
     morning_briefing_hour: int = 5
     morning_briefing_tasks_lookahead_hours: float = 36.0
+    advance_reminder_enabled: bool = True
+    advance_reminder_minutes_before: int = 15
+    class_start_reminder_enabled: bool = True
     class_start_reminder_minutes_before: int = 0
+    attendance_reminder_enabled: bool = True
     attendance_reminder_minutes_before_end: int = 10
 
 
@@ -310,12 +315,30 @@ class Config:
         )
 
         lec_rem_data = rem_data.get("lectures", {})
+        mb_data = lec_rem_data.get("morning_briefing") if isinstance(lec_rem_data.get("morning_briefing"), dict) else {}
+        adv_data = lec_rem_data.get("advance_reminder") if isinstance(lec_rem_data.get("advance_reminder"), dict) else {}
+        cs_data = lec_rem_data.get("class_start") if isinstance(lec_rem_data.get("class_start"), dict) else {}
+        att_data = lec_rem_data.get("attendance") if isinstance(lec_rem_data.get("attendance"), dict) else {}
+
         lec_rem_cfg = LectureRemindersConfig(
             enabled=bool(lec_rem_data.get("enabled", True)),
-            morning_briefing_hour=int(lec_rem_data.get("morning_briefing_hour", 5)),
-            morning_briefing_tasks_lookahead_hours=float(lec_rem_data.get("morning_briefing_tasks_lookahead_hours", 36.0)),
-            class_start_reminder_minutes_before=int(lec_rem_data.get("class_start_reminder_minutes_before", 0)),
-            attendance_reminder_minutes_before_end=int(lec_rem_data.get("attendance_reminder_minutes_before_end", 10)),
+            morning_briefing_enabled=bool(mb_data.get("enabled", lec_rem_data.get("morning_briefing_enabled", True))),
+            morning_briefing_hour=int(mb_data.get("hour", lec_rem_data.get("morning_briefing_hour", 5))),
+            morning_briefing_tasks_lookahead_hours=float(
+                mb_data.get("tasks_lookahead_hours", lec_rem_data.get("morning_briefing_tasks_lookahead_hours", 36.0))
+            ),
+            advance_reminder_enabled=bool(adv_data.get("enabled", lec_rem_data.get("advance_reminder_enabled", True))),
+            advance_reminder_minutes_before=int(
+                adv_data.get("minutes_before", lec_rem_data.get("advance_reminder_minutes_before", 15))
+            ),
+            class_start_reminder_enabled=bool(cs_data.get("enabled", lec_rem_data.get("class_start_reminder_enabled", True))),
+            class_start_reminder_minutes_before=int(
+                cs_data.get("minutes_before", lec_rem_data.get("class_start_reminder_minutes_before", 0))
+            ),
+            attendance_reminder_enabled=bool(att_data.get("enabled", lec_rem_data.get("attendance_reminder_enabled", True))),
+            attendance_reminder_minutes_before_end=int(
+                att_data.get("minutes_before_end", lec_rem_data.get("attendance_reminder_minutes_before_end", 10))
+            ),
         )
 
         reminders_cfg = RemindersConfig(

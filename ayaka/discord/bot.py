@@ -354,6 +354,61 @@ class AyakaBot(commands.Bot):
             logger.error(f"Failed to send class start reminder to {user_id}: {e}")
             return False
 
+    async def send_class_advance_reminder(self, event: dict[str, Any], minutes_before: int = 15) -> bool:
+        """Send proactive advance preparation reminder before class starts."""
+        user_id = self.config.discord.user_id
+        if not user_id:
+            return False
+
+        try:
+            user = await self.fetch_user(user_id)
+            if not user:
+                return False
+
+            detail = event.get("meeting_detail") or {}
+            start_str = event["start_dt"].strftime("%H:%M")
+            end_str = event["end_dt"].strftime("%H:%M")
+
+            embed = discord.Embed(
+                title=f"⏳ Upcoming Class: {event['summary']} (in {minutes_before} min) 🎒✨",
+                description=(
+                    f">>> *\"Master! Heads up! 📢 Your class **{event['summary']}** starts in **{minutes_before} minutes** "
+                    f"({start_str} - {end_str} WIB). "
+                    f"Please prepare your notes and head to class or open your lecture window! (´｡• ᵕ •｡`) ♡ 🌸\"*"
+                ),
+                color=0x3498DB,
+                timestamp=datetime.now(timezone.utc),
+            )
+            embed.set_author(name="Ayaka ✨", icon_url=self.get_author_icon())
+            embed.add_field(name="⏰ Lecture Time", value=f"**{start_str} - {end_str} WIB**", inline=True)
+            room = detail.get("room") or event.get("location")
+            if room:
+                embed.add_field(name="📍 Room / Location", value=f"`{room}`", inline=True)
+            if detail.get("activity_type"):
+                embed.add_field(name="🏷️ Activity Type", value=f"`{detail['activity_type']}`", inline=True)
+            if detail.get("lecturer"):
+                embed.add_field(name="👨‍🏫 Lecturer", value=detail["lecturer"], inline=False)
+            if detail.get("topic"):
+                embed.add_field(name="📖 Topic", value=detail["topic"], inline=False)
+
+            raw_durl = detail.get("detail_url") or ""
+            if raw_durl.startswith("/"):
+                raw_durl = f"https://six.itb.ac.id{raw_durl}"
+            clean_durl = raw_durl.split("?returnTo=")[0]
+            six_btn_url = clean_durl or "https://six.itb.ac.id"
+
+            embed.set_footer(text=f"Advance reminder {minutes_before}m before class • Ayaka ✨")
+            view = ClassStartActionView(
+                edunex_url=detail.get("edunex_url"),
+                teams_url=detail.get("teams_url"),
+                six_url=six_btn_url,
+            )
+            await user.send(embed=embed, view=view)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send advance class reminder to {user_id}: {e}")
+            return False
+
     async def send_class_attendance_reminder(self, event: dict[str, Any]) -> bool:
         """Send proactive attendance reminder 10 minutes before class ends with quick actions."""
         user_id = self.config.discord.user_id

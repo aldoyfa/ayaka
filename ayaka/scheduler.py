@@ -275,9 +275,17 @@ async def schedule_reminder_loop(
             today_str = today.strftime("%Y-%m-%d")
 
             # Dynamic parameters from config.json
+            morning_enabled = cfg.reminders.lectures.morning_briefing_enabled if cfg else True
             morning_hour = cfg.reminders.lectures.morning_briefing_hour if cfg else 5
             tasks_lookahead = cfg.reminders.lectures.morning_briefing_tasks_lookahead_hours if cfg else 36.0
+
+            adv_enabled = cfg.reminders.lectures.advance_reminder_enabled if cfg else True
+            adv_offset_min = cfg.reminders.lectures.advance_reminder_minutes_before if cfg else 15
+
+            start_enabled = cfg.reminders.lectures.class_start_reminder_enabled if cfg else True
             start_offset_min = cfg.reminders.lectures.class_start_reminder_minutes_before if cfg else 0
+
+            attend_enabled = cfg.reminders.lectures.attendance_reminder_enabled if cfg else True
             attend_offset_min = cfg.reminders.lectures.attendance_reminder_minutes_before_end if cfg else 10
 
             # Refresh today's events if date changed or cache older than 10 minutes
@@ -291,7 +299,7 @@ async def schedule_reminder_loop(
                 last_fetch_time = now_local
 
             # 1. Daily morning briefing
-            if now_local.hour >= morning_hour:
+            if morning_enabled and now_local.hour >= morning_hour:
                 morning_rem_id = f"morning:{today_str}"
                 if not await asyncio.to_thread(db.is_schedule_reminder_sent, morning_rem_id):
                     logger.info(f"Triggering morning lecture briefing for {today_str} at hour {now_local.hour} ({len(cached_events)} classes)")
@@ -311,41 +319,62 @@ async def schedule_reminder_loop(
                 start_dt = ev["start_dt"]
                 end_dt = ev["end_dt"]
 
-                # A. Class Start Reminder (target_start = start_dt - offset)
-                target_start = start_dt - timedelta(minutes=start_offset_min)
-                diff_start = (now_local - target_start).total_seconds()
-                if -120 <= diff_start <= 300 and now_local < end_dt:
-                    start_rem_id = f"start:{ev_id}:{today_str}"
-                    if not await asyncio.to_thread(db.is_schedule_reminder_sent, start_rem_id):
-                        logger.info(f"Triggering class start reminder for {ev['summary']} ({start_rem_id})")
-                        sent = await bot.send_class_start_reminder(ev)
-                        if sent:
-                            await asyncio.to_thread(
-                                db.record_schedule_reminder,
-                                reminder_id=start_rem_id,
-                                reminder_type="start",
-                                event_id=ev_id,
-                                event_title=ev["summary"],
-                                scheduled_for=target_start.isoformat(),
-                            )
+                # A. Advance Preparation Reminder (e.g. 15 minutes before start)
+                if adv_enabled and adv_offset_min > 0:
+                    target_adv = start_dt - timedelta(minutes=adv_offset_min)
+                    diff_adv = (now_local - target_adv).total_seconds()
+                    if -120 <= diff_adv <= 300 and now_local < end_dt:
+                        adv_rem_id = f"advance:{ev_id}:{today_str}"
+                        if not await asyncio.to_thread(db.is_schedule_reminder_sent, adv_rem_id):
+                            logger.info(f"Triggering advance class reminder for {ev['summary']} ({adv_rem_id})")
+                            sent = await bot.send_class_advance_reminder(ev, adv_offset_min)
+                            if sent:
+                                await asyncio.to_thread(
+                                    db.record_schedule_reminder,
+                                    reminder_id=adv_rem_id,
+                                    reminder_type="advance",
+                                    event_id=ev_id,
+                                    event_title=ev["summary"],
+                                    scheduled_for=target_adv.isoformat(),
+                                )
 
-                # B. Attendance / Presensi Reminder (target_attend = end_dt - offset)
-                attend_dt = end_dt - timedelta(minutes=attend_offset_min)
-                diff_attend = (now_local - attend_dt).total_seconds()
-                if -120 <= diff_attend <= 300 and now_local < end_dt:
-                    attend_rem_id = f"attendance:{ev_id}:{today_str}"
-                    if not await asyncio.to_thread(db.is_schedule_reminder_sent, attend_rem_id):
-                        logger.info(f"Triggering attendance reminder for {ev['summary']} ({attend_rem_id})")
-                        sent = await bot.send_class_attendance_reminder(ev)
-                        if sent:
-                            await asyncio.to_thread(
-                                db.record_schedule_reminder,
-                                reminder_id=attend_rem_id,
-                                reminder_type="attendance",
-                                event_id=ev_id,
-                                event_title=ev["summary"],
-                                scheduled_for=attend_dt.isoformat(),
-                            )
+                # B. Class Start Reminder (target_start = start_dt - offset)
+                if start_enabled:
+                    target_start = start_dt - timedelta(minutes=start_offset_min)
+                    diff_start = (now_local - target_start).total_seconds()
+                    if -120 <= diff_start <= 300 and now_local < end_dt:
+                        start_rem_id = f"start:{ev_id}:{today_str}"
+                        if not await asyncio.to_thread(db.is_schedule_reminder_sent, start_rem_id):
+                            logger.info(f"Triggering class start reminder for {ev['summary']} ({start_rem_id})")
+                            sent = await bot.send_class_start_reminder(ev)
+                            if sent:
+                                await asyncio.to_thread(
+                                    db.record_schedule_reminder,
+                                    reminder_id=start_rem_id,
+                                    reminder_type="start",
+                                    event_id=ev_id,
+                                    event_title=ev["summary"],
+                                    scheduled_for=target_start.isoformat(),
+                                )
+
+                # C. Attendance / Presensi Reminder (target_attend = end_dt - offset)
+                if attend_enabled:
+                    attend_dt = end_dt - timedelta(minutes=attend_offset_min)
+                    diff_attend = (now_local - attend_dt).total_seconds()
+                    if -120 <= diff_attend <= 300 and now_local < end_dt:
+                        attend_rem_id = f"attendance:{ev_id}:{today_str}"
+                        if not await asyncio.to_thread(db.is_schedule_reminder_sent, attend_rem_id):
+                            logger.info(f"Triggering attendance reminder for {ev['summary']} ({attend_rem_id})")
+                            sent = await bot.send_class_attendance_reminder(ev)
+                            if sent:
+                                await asyncio.to_thread(
+                                    db.record_schedule_reminder,
+                                    reminder_id=attend_rem_id,
+                                    reminder_type="attendance",
+                                    event_id=ev_id,
+                                    event_title=ev["summary"],
+                                    scheduled_for=attend_dt.isoformat(),
+                                )
 
         except Exception as e:
             logger.error(f"Error in lecture schedule reminder loop: {e}")

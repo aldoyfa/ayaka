@@ -96,3 +96,13 @@ def test_delete_task_exact_title_priority(test_config, test_db):
     tasks_after = test_db.list_tasks(include_completed=True)
     assert len(tasks_after) == 1
     assert tasks_after[0]["title"] == "Late Submission HW1 for Session2"
+
+
+def test_ai_agent_system_prompt_reflects_config(test_config, test_db):
+    test_config.reminders.lectures.advance_reminder_enabled = True
+    test_config.reminders.lectures.advance_reminder_minutes_before = 15
+    test_config.reminders.lectures.morning_briefing_hour = 6
+    agent = AIAgent(config=test_config, db=test_db)
+    prompt = agent._build_system_prompt()
+    assert "Advance preparation reminder: sent 15 minutes before class begins" in prompt
+    assert "Morning briefing: every morning at 06:00 WIB" in prompt

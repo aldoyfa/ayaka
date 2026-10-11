@@ -300,3 +300,44 @@ def test_future_only_filtering():
         all_meetings = fetcher.fetch_lecture_meetings(fetch_modals=False, future_only=False)
         assert len(all_meetings) == 3
 
+
+@pytest.mark.anyio
+async def test_send_class_advance_reminder(tmp_path):
+    from unittest.mock import AsyncMock
+
+    db_file = tmp_path / "test.db"
+    db = Database(str(db_file))
+    config = Config.load()
+    config.discord.user_id = 123456789
+
+    bot = AyakaBot(config, db)
+    mock_user = AsyncMock()
+    bot.fetch_user = AsyncMock(return_value=mock_user)
+
+    tz = zoneinfo.ZoneInfo("Asia/Jakarta")
+    dt1 = datetime(2026, 10, 12, 9, 0, tzinfo=tz)
+    dt2 = datetime(2026, 10, 12, 11, 0, tzinfo=tz)
+
+    event = {
+        "id": "ev_adv",
+        "summary": "IF5152 Visi Komputer",
+        "location": "Lab 7602",
+        "start_dt": dt1,
+        "end_dt": dt2,
+        "meeting_detail": {
+            "lecturer": "Dr. Nugraha",
+            "topic": "Neural Nets",
+            "room": "Lab 7602",
+        },
+    }
+
+    sent = await bot.send_class_advance_reminder(event, minutes_before=15)
+    assert sent is True
+    assert mock_user.send.called
+    kwargs = mock_user.send.call_args.kwargs
+    embed = kwargs.get("embed")
+    assert embed is not None
+    assert "Upcoming Class: IF5152 Visi Komputer (in 15 min)" in embed.title
+    assert "15 minutes" in embed.description
+
+

@@ -62,10 +62,23 @@
     },
     "lectures": {
       "enabled": true,
-      "morning_briefing_hour": 5,
-      "morning_briefing_tasks_lookahead_hours": 36,
-      "class_start_reminder_minutes_before": 0,
-      "attendance_reminder_minutes_before_end": 10
+      "morning_briefing": {
+        "enabled": true,
+        "hour": 5,
+        "tasks_lookahead_hours": 36
+      },
+      "advance_reminder": {
+        "enabled": true,
+        "minutes_before": 15
+      },
+      "class_start": {
+        "enabled": true,
+        "minutes_before": 0
+      },
+      "attendance": {
+        "enabled": true,
+        "minutes_before_end": 10
+      }
     }
   },
   "platforms": {

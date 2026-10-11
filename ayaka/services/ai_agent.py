@@ -223,11 +223,25 @@ class AIAgent:
             ]
         milestones_text = "\n".join(task_milestones_desc)
 
-        morning_hour = rem_cfg.lectures.morning_briefing_hour if (rem_cfg and rem_cfg.lectures) else 5
-        start_min = rem_cfg.lectures.class_start_reminder_minutes_before if (rem_cfg and rem_cfg.lectures) else 0
-        attend_min = rem_cfg.lectures.attendance_reminder_minutes_before_end if (rem_cfg and rem_cfg.lectures) else 10
-
-        start_phrase = f"{start_min} minutes before class start" if start_min > 0 else "right when class begins"
+        lec_cfg = getattr(rem_cfg, "lectures", None) if rem_cfg else None
+        lec_desc: list[str] = []
+        if lec_cfg and not lec_cfg.enabled:
+            lec_desc.append("     * Lecture reminders are currently disabled in config.json.")
+        else:
+            if not lec_cfg or lec_cfg.morning_briefing_enabled:
+                mb_h = lec_cfg.morning_briefing_hour if lec_cfg else 5
+                lec_desc.append(f"     * Morning briefing: every morning at {mb_h:02d}:00 WIB (today's classes & upcoming deadlines).")
+            if not lec_cfg or (lec_cfg.advance_reminder_enabled and lec_cfg.advance_reminder_minutes_before > 0):
+                adv_m = lec_cfg.advance_reminder_minutes_before if lec_cfg else 15
+                lec_desc.append(f"     * Advance preparation reminder: sent {adv_m} minutes before class begins.")
+            if not lec_cfg or lec_cfg.class_start_reminder_enabled:
+                cs_m = lec_cfg.class_start_reminder_minutes_before if lec_cfg else 0
+                cs_phrase = f"{cs_m} minutes before class start" if cs_m > 0 else "right when class begins"
+                lec_desc.append(f"     * Class start: sent {cs_phrase} (with Teams & LMS links).")
+            if not lec_cfg or lec_cfg.attendance_reminder_enabled:
+                att_m = lec_cfg.attendance_reminder_minutes_before_end if lec_cfg else 10
+                lec_desc.append(f"     * Attendance (presensi): sent {att_m} minutes before class ends (reminding to fill attendance on SIX/Edunex).")
+        lectures_text = "\n".join(lec_desc)
 
         return f"""You are Ayaka (Kamisato Ayaka), Master's dedicated, loving, cheerful anime study companion and academic assistant.
 
@@ -246,9 +260,7 @@ Key Persona & Behavior Guidelines:
    - Academic Task Reminders (from config.json -> reminders.tasks):
 {milestones_text}
    - Lecture & Class Schedule Reminders (from config.json -> reminders.lectures):
-     * Morning briefing: every morning at {morning_hour:02d}:00 WIB (today's classes & upcoming deadlines).
-     * Class start: sent {start_phrase} (with Teams & LMS links).
-     * Attendance (presensi): sent {attend_min} minutes before class ends (reminding to fill attendance on SIX/Edunex).
+{lectures_text}
    - Important Rules: All reminders are sent automatically to Discord channels by the scheduler. Reminder configurations are stored in config.json. You DO NOT create Google Calendar reminders; do not promise custom reminder times that require manual setup.
 """
 

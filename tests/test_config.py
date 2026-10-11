@@ -136,3 +136,46 @@ def test_config_reminders_from_config_json(tmp_path):
     assert cfg.reminders.lectures.attendance_reminder_minutes_before_end == 15
 
 
+def test_config_nested_lecture_reminders(tmp_path):
+    config_file = tmp_path / "config.json"
+    config_content = {
+        "reminders": {
+            "lectures": {
+                "enabled": True,
+                "morning_briefing": {
+                    "enabled": False,
+                    "hour": 7,
+                    "tasks_lookahead_hours": 12,
+                },
+                "advance_reminder": {
+                    "enabled": True,
+                    "minutes_before": 20,
+                },
+                "class_start": {
+                    "enabled": False,
+                    "minutes_before": 2,
+                },
+                "attendance": {
+                    "enabled": True,
+                    "minutes_before_end": 5,
+                },
+            }
+        }
+    }
+    with open(config_file, "w", encoding="utf-8") as f:
+        json.dump(config_content, f)
+
+    cfg = Config.load(base_dir=tmp_path)
+    lec = cfg.reminders.lectures
+    assert lec.enabled is True
+    assert lec.morning_briefing_enabled is False
+    assert lec.morning_briefing_hour == 7
+    assert lec.morning_briefing_tasks_lookahead_hours == 12.0
+    assert lec.advance_reminder_enabled is True
+    assert lec.advance_reminder_minutes_before == 20
+    assert lec.class_start_reminder_enabled is False
+    assert lec.class_start_reminder_minutes_before == 2
+    assert lec.attendance_reminder_enabled is True
+    assert lec.attendance_reminder_minutes_before_end == 5
+
+
