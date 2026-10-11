@@ -1,131 +1,193 @@
-# Ayaka (绫华) — ITB Academic Assistant & Notification Bot
+# Ayaka (绫华) — ITB Academic Assistant & Notification Bot 🌸
 
-Ayaka is an autonomous academic synchronization and notification assistant for Institut Teknologi Bandung (ITB) students. It continuously monitors academic platforms (**six.itb.ac.id**, **edunex.itb.ac.id**, **edu.omnicamp.us**) and scans **Gmail** for critical announcements.
+Ayaka is an autonomous, local-first academic synchronization and proactive notification assistant tailored for students of Institut Teknologi Bandung (ITB). It continuously monitors academic platforms (**six.itb.ac.id**, **edunex.itb.ac.id**, **edu.omnicamp.us**) and scans **Gmail** for critical announcements.
 
-Ayaka automatically synchronizes schedules and deadlines to **Google Calendar** and **Google Tasks**, and delivers tiered milestone alerts directly to your **Discord Direct Messages (DM)** with interactive one-click completion buttons.
-
----
-
-## Key Features
-
-1. **Multi-Platform Fetcher**:
-   - **Edunex ITB**: Fetches assignments, quizzes, and submission deadlines via browser session cookies or bearer tokens.
-   - **SIX ITB**: Extracts course schedules, midterm/final exam timetables, and academic announcements via session cookie (`ci_session`).
-   - **Omnicampus**: Parses course assignments and class activities via bearer token.
-2. **Gmail Monitor (Option C)**:
-   - Scans unread incoming emails from ITB domains (`@itb.ac.id`, `@mahasiswa.itb.ac.id`) or messages marked *Important/Starred*.
-   - Filters academic priority keywords (*assignment, exam, midterm, final, deadline, announcement, grade, lecturer, quiz, practicum, schedule, tugas, ujian, uts, uas, pengumuman, kuliah, nilai, dosen, asistensi, kuis, praktikum, revisi, jadwal*).
-   - Forwards real-time summaries of urgent emails straight to your Discord DM.
-3. **Google Workspace Synchronization**:
-   - **Google Calendar**: Creates scheduled deadline blocks (30-minute time slots prior to due dates).
-   - **Google Tasks**: Generates actionable checklist items linked to Calendar and Gmail.
-4. **Tiered Milestone Reminders & Anime Character Persona (Discord DM)**:
-   - **Kamisato Ayaka Persona**: Speaks with an elegant, devoted, polite, and encouraging tone in English.
-   - **Customizable Dialogue Config (`dialogues.json`)**: Every scenario (H-3, H-1, J-6, J-1, Due, Task Complete, Gmail Alert, Empty State) is mapped to customizable voice lines.
-   - **Modern Aesthetic Discord UI**:
-     - **Dynamic Relative Timestamps**: Discord native `<t:timestamp:R>` for live countdowns (e.g. *in 3 days*, *in 6 hours*).
-     - **Visual ASCII Progress Bar**: Time elapsed indicator (`[▰▰▰▰▱▱▱▱] 45% elapsed`).
-     - **Interactive Buttons**: `[✅ Mark Complete]` and direct `[🔗 Open Assignment]` link button.
-5. **Dual Interface**:
-   - **24/7 Daemon on VPS**: Containerized Discord bot and scheduler running continuously via Docker Compose.
-   - **AI Workspace Chat**: Manage, fetch, or mark tasks done conversationally by chatting with your AI assistant.
+Ayaka synchronizes schedules and deadlines to **Google Calendar** and **Google Tasks**, delivers tiered milestone alerts directly to your **Discord Direct Messages (DM)** with interactive UI components, manages class attendance reminders, and provides a conversational **AI Assistant** powered by Google Gemini with tool calling and persistent memory.
 
 ---
 
-## Directory Structure
+## 🌟 Key Features
+
+### 1. High-Performance Asynchronous Multi-Platform Fetcher
+- **Edunex ITB**: Scrapes assignments, quizzes, and submission deadlines via browser session cookies or bearer tokens. Features dynamic period discovery and parallel task detail retrieval.
+- **SIX ITB**: Scrapes student lecture calendars, midterm/final exam timetables (UTS/UAS), and meeting details (lecturers, topics, Teams/Edunex links, room numbers, attendance windows) concurrently (<500ms using `asyncio.gather()`).
+- **Omnicampus**: Parses course assignments, reports, and attendance questionnaires asynchronously across configurable course IDs.
+- **Dynamic Academic Configuration**: Configurable student ID (NIM), semester code, period ID, and course IDs without modifying source code.
+
+### 2. Intelligent Lecture Schedule & Attendance Management
+- **Google Calendar & SIX Integration**: Synchronizes SIX lecture meetings with Google Calendar.
+- **Daily Morning Briefing (05:00 WIB)**: Proactively sends an embed summarizing today's class schedule and tasks nearing their deadlines.
+- **Class Start Proactive Alerts**: Dispatches DM reminders when a lecture starts with instant action buttons: `[Open SIX]`, `[Open Edunex]`, and `[Join Teams]`.
+- **Class Attendance Proactive Alerts**: Dispatches attendance reminders 10 minutes before class ends with a `[Checked In]` status button.
+- **Schedule Slash Command (`/schedule`)**: Interactive calendar views for `today`, `tomorrow`, `week`, or custom dates with lecture topics and room details.
+
+### 3. Gmail Monitor (Priority Scanning)
+- Scans unread incoming emails from ITB domains (`@itb.ac.id`, `@mahasiswa.itb.ac.id`) or messages marked *Important/Starred*.
+- Filters academic priority keywords (*assignment, exam, deadline, announcement, grade, lecturer, quiz, schedule, tugas, ujian, uts, uas, pengumuman, kuliah, nilai, dosen, kuis, jadwal*).
+- Forwards real-time summaries of urgent emails straight to your Discord DM.
+
+### 4. Google Workspace Synchronization
+- **Google Calendar**: Automatically creates scheduled deadline blocks prior to due dates.
+- **Google Tasks**: Generates actionable checklist items linked to Calendar and Gmail. Marking a task completed in Discord marks it completed in Google Tasks.
+
+### 5. Discord Bot with Modular Cogs Architecture & Rich UI
+- **Modern Aesthetic Discord UI**:
+  - **Dynamic Relative Timestamps**: Discord native `<t:timestamp:R>` countdowns (e.g. *in 3 days*, *in 6 hours*).
+  - **Visual ASCII Progress Bar**: Time elapsed indicator (`[▰▰▰▰▱▱▱▱] 45% elapsed`).
+  - **Interactive Action Buttons**: `[✅ Mark Complete]`, `[🔗 Open Assignment]`, `[Join Teams]`, `[Checked In]`.
+  - **Interactive Pagination**: Browse tasks with `[◀ Prev]` and `[Next ▶]` buttons.
+- **Kamisato Ayaka Persona**: Speaks with an elegant, devoted, polite, and encouraging tone. Dialogue voice lines and scenarios are fully customizable via `dialogues.json`.
+
+### 6. Conversational AI Agent with Tool Calling & Persistent Memory
+- Powered by Google Gemini (`gemini-3.5-flash`, `gemini-2.5-flash`, etc.).
+- **Function / Tool Calling**: Ayaka can look up deadlines, search upcoming classes, add new tasks via natural language, mark assignments done, and query system status during casual chat.
+- **Persistent Chat History**: Backed by SQLite `ai_conversations` table with automatic TTL pruning (>48h), maintaining memory across bot restarts and deployments.
+
+---
+
+## 🏛️ Architecture & Directory Structure
 
 ```text
 projects/ayaka/
-├── .env.example              # Private tokens and session cookie template
-├── config.json               # Operational settings (Gmail keywords, intervals, URLs)
-├── dialogues.json            # Customizable anime character dialogue map
-├── .gitignore                # Security rules preventing token/database leaks
-├── Dockerfile                # Lightweight Python 3.12 slim container definition
-├── docker-compose.yml        # Docker Compose configuration with volume persistence
-├── pyproject.toml            # Project metadata and pinned dependencies
-├── requirements.txt          # Python requirements list
-├── README.md                 # Complete documentation and setup guide
+├── .env.example                       # Template for private credentials and tokens
+├── config.json                        # Operational settings (Gmail keywords, intervals, URLs)
+├── dialogues.json                     # Character voice lines and persona scenarios
+├── task_filters.json                  # Task rules, course filters, and blacklist
+├── Dockerfile                         # Production Python 3.12 container definition
+├── docker-compose.yml                 # Container service with volume persistence
+├── pyproject.toml                     # Project metadata and dependencies
+├── requirements.txt                   # Pinned dependency specifications
+├── CODE_REVIEW_AND_REFACTORING_ROADMAP.md # Engineering architecture & refactoring roadmap
+├── README.md                          # Main documentation and operational guide
 ├── ayaka/
-│   ├── config.py             # Secure configuration loader (config.json + .env)
-│   ├── cli.py                # Command-line interface for chat and manual control
-│   ├── dialogue.py           # Dialogue manager and aesthetic Discord UI generator
-│   ├── scheduler.py          # Periodic polling and reminder milestone evaluation engine
-│   ├── main.py               # 24/7 background daemon runner
-│   ├── fetchers/
-│   │   ├── edunex.py         # Edunex ITB scraper & API client
-│   │   ├── six.py            # SIX ITB academic schedule & exam scraper
-│   │   ├── omnicampus.py     # Omnicampus task parser
-│   │   └── gmail_reader.py   # Option C Gmail monitor
-│   ├── services/
-│   │   ├── google_sync.py    # Google Calendar & Tasks sync service
-│   │   └── discord_bot.py    # Discord bot DM client with interactive UI views
-│   └── storage/
-│       └── db.py             # SQLite state persistence and deduplication engine
-└── tests/
-    ├── test_config.py                 # Unit tests for config.json loading
-    ├── test_dialogue_and_ui.py        # Unit tests for character dialogue & UI helpers
-    └── test_storage_and_milestones.py # Unit tests for storage and milestone triggers
+│   ├── config.py                      # Dataclass-based settings loader (.env + config.json)
+│   ├── cli.py                         # Unified terminal CLI (status, list, add, complete, bot, sync)
+│   ├── dialogue.py                    # Dialogue manager & Discord UI formatting helpers
+│   ├── scheduler.py                   # Async periodic loops (sync, reminder, gmail, schedule)
+│   ├── task_filters.py                # Blacklist & course filtering engine
+│   ├── main.py                        # 24/7 background daemon runner (DaemonBot)
+│   ├── core/                          # Core domain utilities
+│   │   └── time.py                    # Unified timezone & natural language date parser
+│   ├── fetchers/                      # Asynchronous LMS scrapers & clients
+│   │   ├── base.py                    # BaseFetcher abstraction & sync/async bridges
+│   │   ├── edunex.py                  # Edunex ITB async fetcher (concurrent tasks)
+│   │   ├── six.py                     # SIX ITB async scraper (concurrent modal dialogs)
+│   │   ├── omnicampus.py              # Omnicampus API async client
+│   │   └── gmail_reader.py            # Gmail API monitor
+│   ├── storage/                       # Storage & Repository Layer
+│   │   ├── connection.py              # Thread-safe persistent connection manager (WAL mode)
+│   │   ├── db.py                      # High-level database coordinator facade
+│   │   └── repositories/              # Domain-specific repositories
+│   │       ├── task_repo.py           # Task CRUD & milestone queries
+│   │       ├── meeting_repo.py        # Lecture meeting range queries
+│   │       ├── alert_repo.py          # Session & reminder logs
+│   │       └── ai_repo.py             # Persistent conversational memory with TTL pruning
+│   ├── services/                      # Application Domain Services
+│   │   ├── ai_agent.py                # Gemini AI agent with function calling
+│   │   ├── google_sync.py             # Google Tasks & Calendar sync service
+│   │   ├── schedule_service.py        # Class meeting & schedule reminder manager
+│   │   └── discord_bot.py             # Facade export for Discord client
+│   └── discord/                       # Modular Discord Bot UI & Cogs
+│       ├── bot.py                     # AyakaBot client & global error handling
+│       ├── constants.py               # Theme colors, icons, and emojis
+│       ├── views/                     # Discord UI component views
+│       │   ├── pagination.py          # TaskPaginationView
+│       │   ├── task_actions.py        # TaskActionView
+│       │   └── meeting_actions.py     # AttendanceActionView, ClassStartActionView
+│       ├── formatters/                # Discord Embed builders
+│       │   ├── schedule_embed.py      # Schedule embed formatter
+│       │   ├── sync_embed.py          # Multi-platform sync embed formatter
+│       │   └── task_embed.py          # Task reminder & upcoming embeds
+│       └── cogs/                      # Discord App Command Cogs
+│           ├── academic_cog.py        # /tasks, /upcoming, /sync, /add, /complete, /blacklist
+│           ├── schedule_cog.py        # /schedule (today, tomorrow, week, date picker)
+│           ├── admin_cog.py           # /status, /session, /filter, /ping
+│           └── ai_cog.py              # /ai, mention listener (@Ayaka)
+└── tests/                             # Comprehensive test suite (46 passed)
+    ├── test_ai_agent.py               # AI tool calling & natural date tests
+    ├── test_async_fetchers.py         # Async fetchers, concurrency & dynamic config tests
+    ├── test_config.py                 # Configuration loading & override tests
+    ├── test_core_time.py              # Timezone & date parsing tests
+    ├── test_dialogue_and_ui.py        # Dialogue manager & UI progress bar tests
+    ├── test_discord_cogs.py           # Cogs loading & views initialization tests
+    ├── test_enhancements.py           # Blacklist filters & WAL mode tests
+    ├── test_repositories.py           # Repository pattern & AI history pruning tests
+    ├── test_schedule_service.py       # Meeting enrichment & calendar tests
+    └── test_storage_and_milestones.py # Task milestone evaluation tests
 ```
 
 ---
 
-## Configuration Architecture
+## ⚙️ Configuration Setup
 
-Ayaka separates configuration into three clean, dedicated layers:
-
-1. **Private Credentials (`.env`)**:
-   - Strictly reserved for private secrets: `DISCORD_BOT_TOKEN`, `DISCORD_USER_ID`, `EDUNEX_COOKIE`, `SIX_COOKIE`, `OMNICAMPUS_TOKEN`.
-   - Never committed to version control.
-2. **Operational Settings (`config.json`)**:
-   - **Gmail Filters**: List of priority keywords (`assignment`, `exam`, `deadline`, `tugas`, `ujian`, etc.) and monitored campus domains.
-   - **Timers & Intervals**: Background polling intervals for academic platforms and Gmail.
-   - **Platform URLs**: Base URLs for Edunex, SIX ITB, and Omnicampus.
-   - **Timezone**: Default `Asia/Jakarta`.
-3. **Character Voice & Dialogue (`dialogues.json`)**:
-   - In-character voice lines, kaomoji, and embed titles for each scenario (H-3, H-1, J-6, J-1, Due, Task Complete, Gmail Alert, etc.).
-
----
-
-## Setup & Configuration
-
-### 1. Configure `.env`
-
-In `projects/ayaka/`:
+### 1. Copy Environment Template
 ```bash
 cp .env.example .env
 ```
-Open `.env` and fill in your credentials:
 
-#### A. Discord Bot
-1. Create a Discord application and bot in the [Discord Developer Portal](https://discord.com/developers/applications).
-2. Copy your bot token into `DISCORD_BOT_TOKEN`.
-3. Under the **Bot** tab, enable **Message Content Intent**.
-4. Invite the bot to a server you share with it.
-5. Copy your personal Discord User ID (Right-click avatar with Developer Mode enabled > *Copy User ID*) into `DISCORD_USER_ID`.
+### 2. Fill in Private Credentials (`.env`)
+```ini
+# Discord Bot
+DISCORD_BOT_TOKEN=your_bot_token_here
+DISCORD_USER_ID=your_discord_user_id
 
-#### B. Academic Platforms (Session Cookies / Tokens)
-1. **Edunex**: Open DevTools (`F12`) > **Network** tab while viewing `edunex.itb.ac.id`, copy the `Cookie` header or Bearer token into `EDUNEX_COOKIE` / `EDUNEX_BEARER_TOKEN`.
-2. **SIX ITB**: Open DevTools > **Application** > **Cookies** > `https://six.itb.ac.id`, copy the session cookie (typically `ci_session`) into `SIX_COOKIE`.
-3. **Omnicampus**: Open DevTools > **Application** > **Local Storage** / **Cookies**, copy the auth token into `OMNICAMPUS_TOKEN`.
+# Academic Platform Cookies & Tokens
+EDUNEX_COOKIE=your_edunex_cookie_or_token
+SIX_COOKIE=ci_session=your_six_cookie
+OMNICAMPUS_TOKEN=your_omnicampus_token
 
-#### C. Google Cloud Credentials
-1. Download your `credentials.json` (OAuth 2.0 Client ID for Desktop App) from Google Cloud Console.
-2. Place the file inside `projects/ayaka/credentials.json`.
-3. On first execution, Ayaka will open an authorization link to generate `token.json`.
+# Google Workspace (Optional Overrides)
+GOOGLE_CREDENTIALS_FILE=credentials.json
+GOOGLE_TOKEN_FILE=token.json
+
+# Gemini AI (Optional)
+AI_API_KEY=your_gemini_api_key
+AI_MODEL=gemini-3.5-flash
+```
+
+### 3. Operational Settings (`config.json`)
+You can fine-tune academic sync intervals, semester codes, and student ID directly in `config.json` without touching Python files:
+```json
+{
+  "system": {
+    "timezone": "Asia/Jakarta",
+    "database_path": "data/ayaka_state.db"
+  },
+  "platforms": {
+    "edunex": {
+      "base_url": "https://edunex.itb.ac.id",
+      "period_id": 26
+    },
+    "six": {
+      "base_url": "https://six.itb.ac.id",
+      "student_id": "18223113",
+      "semester_code": "2026-1"
+    },
+    "omnicampus": {
+      "base_url": "https://edu.omnicamp.us",
+      "course_ids": [170]
+    }
+  },
+  "scheduler": {
+    "academic_sync_interval_minutes": 30,
+    "reminder_poll_interval_seconds": 60
+  }
+}
+```
 
 ---
 
-## Deployment & Usage
+## 🚀 Deployment & Running
 
-### Method A: 24/7 Deployment on VPS via Docker Compose (Recommended)
+### Method A: Docker Compose on VPS (Recommended for 24/7 Production)
 
-1. Copy the `projects/ayaka` directory to your VPS.
-2. Ensure `.env` is configured with your credentials.
-3. Start the container in the background:
+1. Clone or upload the repository to your VPS.
+2. Configure `.env` with your credentials.
+3. Start the container in background daemon mode:
    ```bash
    docker compose up -d --build
    ```
-4. View live bot logs:
+4. View live logs:
    ```bash
    docker compose logs -f
    ```
@@ -135,40 +197,125 @@ Open `.env` and fill in your credentials:
    docker compose down      # Stop bot service
    ```
 
-*Note: All SQLite data is stored in the host `./data` directory, preserving task histories across container restarts and rebuilds.*
+*Persistent SQLite data is safely stored in `./data` on the host.*
 
 ---
 
-### Method B: Conversational & CLI Interaction in AI Workspace
+### Method B: Systemd Service (Native Linux VPS)
 
-You can ask the AI assistant in chat to execute CLI commands at any time, or run them directly in your shell:
-
-- **Check system status and credentials:**
-  ```bash
-  python -m ayaka.cli status
-  ```
-- **List active pending tasks:**
-  ```bash
-  python -m ayaka.cli list
-  ```
-- **Mark a task completed manually:**
-  ```bash
-  python -m ayaka.cli complete <TASK_ID>
-  ```
-- **Add a manual task or deadline:**
-  ```bash
-  python -m ayaka.cli add "Project Milestone 1" "2026-10-15T23:59:00" --course "IF2210"
-  ```
-- **Trigger an on-demand sync cycle:**
-  ```bash
-  python -m ayaka.cli sync
-  ```
+A pre-configured service file `ayaka.service` is included:
+```bash
+sudo cp ayaka.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now ayaka
+sudo journalctl -u ayaka -f
+```
 
 ---
 
-## Discord Bot Commands
+### Method C: Local Virtual Environment / CLI
 
-When messaging the bot or in a server channel:
-- `!tasks` or `!list`: Displays currently pending academic tasks with deadlines.
-- `!complete <task_id>`: Marks a task as completed directly from Discord.
-- Clicking the **[✅ Mark Complete]** button on any reminder embed instantly resolves the task and prevents further notifications.
+```bash
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Run the 24/7 Daemon
+python -m ayaka.main
+
+# Or run via CLI
+python -m ayaka.cli bot
+```
+
+---
+
+## 💻 CLI Commands
+
+The `ayaka.cli` module allows manual ledger management and sync triggers:
+
+```bash
+# Check system status and credentials
+python -m ayaka.cli status
+
+# List active pending tasks
+python -m ayaka.cli list
+python -m ayaka.cli list --all
+python -m ayaka.cli list --platform edunex
+
+# Mark a task completed manually
+python -m ayaka.cli complete <TASK_ID>
+
+# Add a manual task (supports natural language dates)
+python -m ayaka.cli add "Tugas Besar Milestone 1" "2026-10-25T23:59:00" --course "IF4031"
+
+# Trigger an on-demand async sync cycle
+python -m ayaka.cli sync
+python -m ayaka.cli sync --platform six
+```
+
+---
+
+## 🎮 Discord Slash Commands
+
+Ayaka provides rich slash commands organized by domain:
+
+### Academic Commands (`AcademicCog`)
+| Command | Description |
+| :--- | :--- |
+| `/tasks [all_tasks] [platform]` | Interactive pagination view of pending/all assignments. |
+| `/upcoming [days]` | Summary of assignments due in the next *N* days (default: 7). |
+| `/sync [platform]` | Triggers on-demand async synchronization across platforms. |
+| `/add <title> <due_date> [course] [desc]` | Adds a manual assignment (accepts ISO or natural language dates). |
+| `/complete <task_id>` | Marks an assignment completed directly from Discord. |
+| `/blacklist <task_id> [reason]` | Blacklists an assignment ID so it won't be synced again. |
+
+### Schedule Commands (`ScheduleCog`)
+| Command | Description |
+| :--- | :--- |
+| `/schedule [view] [date]` | Views lecture schedules (`today`, `tomorrow`, `week`, or a specific date) with class room, lecturer, topic, Teams link, and attendance window. |
+
+### AI Assistant Commands (`AICog`)
+| Command | Description |
+| :--- | :--- |
+| `/ai <prompt>` | Converse with Ayaka AI. Supports tool calling (querying schedule, checking tasks, adding reminders). |
+| `@Ayaka <message>` | Mention Ayaka anywhere in a channel to chat naturally. Maintains 48-hour conversation memory. |
+
+### Administrative Commands (`AdminCog`)
+| Command | Description |
+| :--- | :--- |
+| `/status` | Displays system health, uptime, configured services, and task counts. |
+| `/session` | Step-by-step guide to extract and refresh expired cookies. |
+| `/filter` | Inspects currently active course filters and task blacklists. |
+| `/ping` | Checks bot latency and responsiveness. |
+
+---
+
+## 🧪 Testing & Quality Assurance
+
+Ayaka includes a comprehensive unit test suite covering configuration parsing, repository caching, time parsing, Discord Cogs, async fetchers, and background milestone evaluation.
+
+Run tests using pytest:
+```bash
+pytest -v
+```
+
+Output:
+```text
+======================== 46 passed, 1 warning in 2.52s =========================
+```
+
+---
+
+## 🔒 Security Best Practices
+
+- **Zero Credential Commits**: `.env`, `credentials.json`, `token.json`, and `data/*.db` are strictly ignored by `.gitignore`.
+- **Thread-Safe SQLite**: Uses thread-local persistent connections with WAL mode and 5000ms busy timeout to prevent database locks.
+- **Automatic TTL Cleanup**: Chat histories older than 48 hours are automatically pruned from the database to conserve memory and protect privacy.
+
+---
+
+## 📜 License
+
+Private project developed for academic productivity at Institut Teknologi Bandung.
+All character references to Kamisato Ayaka belong to © miHoYo / HoYoverse.
