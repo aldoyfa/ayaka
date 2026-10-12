@@ -49,6 +49,46 @@ def test_parse_user_due_date_formatted():
     assert dt_date_only.minute == 59
 
 
+def test_parse_user_due_date_dot_time_and_indonesian_formats():
+    # 1. Indonesian dot time: "2026-10-15 21.00" must parse to 21:00, NOT 23:59!
+    dt1 = parse_user_due_date("2026-10-15 21.00")
+    assert dt1 is not None
+    assert dt1.year == 2026 and dt1.month == 10 and dt1.day == 15
+    assert dt1.hour == 21 and dt1.minute == 0
+
+    # 2. Dot time with minutes: "2026-10-15 21.30"
+    dt2 = parse_user_due_date("2026-10-15 21.30")
+    assert dt2 is not None
+    assert dt2.hour == 21 and dt2.minute == 30
+
+    # 3. With "jam" prefix: "2026-10-15 jam 21.00"
+    dt3 = parse_user_due_date("2026-10-15 jam 21.00")
+    assert dt3 is not None
+    assert dt3.hour == 21 and dt3.minute == 0
+
+    # 4. Textual Indonesian month: "15 Oktober 2026 21.00"
+    dt4 = parse_user_due_date("15 Oktober 2026 21.00")
+    assert dt4 is not None
+    assert dt4.year == 2026 and dt4.month == 10 and dt4.day == 15
+    assert dt4.hour == 21 and dt4.minute == 0
+
+    # 5. DD/MM/YYYY and DD-MM-YYYY with dot time
+    dt5 = parse_user_due_date("15/10/2026 21.00")
+    assert dt5 is not None
+    assert dt5.year == 2026 and dt5.month == 10 and dt5.day == 15
+    assert dt5.hour == 21 and dt5.minute == 0
+
+    dt6 = parse_user_due_date("15-10-2026 21.00")
+    assert dt6 is not None
+    assert dt6.year == 2026 and dt6.month == 10 and dt6.day == 15
+    assert dt6.hour == 21 and dt6.minute == 0
+
+    # 6. Time only: "21.00"
+    dt_time = parse_user_due_date("21.00")
+    assert dt_time is not None
+    assert dt_time.hour == 21 and dt_time.minute == 0
+
+
 def test_parse_user_due_date_natural():
     tz = zoneinfo.ZoneInfo("Asia/Jakarta")
     now = datetime.now(tz)
