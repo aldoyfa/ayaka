@@ -17,7 +17,7 @@ from discord import app_commands
 from discord.ext import commands
 import httpx
 
-from ayaka.config import update_env_variable
+from ayaka.config import is_safe_env_value, update_env_variable
 from ayaka.core.time import format_uptime
 from ayaka.dialogue import format_discord_timestamp
 
@@ -146,9 +146,16 @@ class AdminCog(commands.Cog, name="Admin"):
             )
             return
 
+        clean_cred = credential.strip().strip("'\"")
+        if not clean_cred or not is_safe_env_value(clean_cred):
+            await interaction.response.send_message(
+                "That credential is empty or contains line breaks, so I did not save it. (｡•́︿•̀｡)",
+                ephemeral=True,
+            )
+            return
+
         await interaction.response.defer(ephemeral=True, thinking=True)
         plat_val = platform.value
-        clean_cred = credential.strip().strip("'\"")
         if plat_val == "omnicampus" and clean_cred.lower().startswith("bearer "):
             clean_cred = clean_cred[7:].strip()
 
@@ -157,8 +164,8 @@ class AdminCog(commands.Cog, name="Admin"):
             "edunex": "EDUNEX_COOKIE",
             "six": "SIX_COOKIE",
         }
-        env_key = env_key_map.get(plat_val, f"{plat_val.upper()}_COOKIE")
-        update_env_variable(env_key, clean_cred)
+        env_key = env_key_map[plat_val]
+        persisted = update_env_variable(env_key, clean_cred)
 
         if plat_val == "omnicampus":
             self.bot.config.academic.omnicampus_token = clean_cred
@@ -205,6 +212,7 @@ class AdminCog(commands.Cog, name="Admin"):
                 f">>> *\"Splendid, Master! I have safely updated the credentials for **{platform.value.upper()}** "
                 f"in `.env` and refreshed our active connection! (≧◡ŋ) 💕\"*\n\n"
                 f"**Verification Status:**\n{verif_msg}\n\n"
+                + ("" if persisted else "⚠️ Could not write `.env`; active until restart only.\n\n") +
                 f"-# Background synchronization cycle for `{platform.value.upper()}` has been started automatically."
             ),
             color=0x2ECC71 if verified else 0xF39C12,
@@ -299,7 +307,13 @@ class AdminCog(commands.Cog, name="Admin"):
             "edunex": "EDUNEX_COOKIE",
             "six": "SIX_COOKIE",
         }
-        env_key = env_key_map.get(plat_val, f"{plat_val.upper()}_COOKIE")
+        if plat_val not in env_key_map or not clean_cred or not is_safe_env_value(clean_cred):
+            try:
+                await ctx.author.send("Unknown platform (use omnicampus, edunex or six) or an unsafe/empty credential.")
+            except Exception:
+                pass
+            return
+        env_key = env_key_map[plat_val]
         update_env_variable(env_key, clean_cred)
 
         if plat_val == "omnicampus":

@@ -179,3 +179,65 @@ def test_config_nested_lecture_reminders(tmp_path):
     assert lec.attendance_reminder_minutes_before_end == 5
 
 
+
+
+def test_update_env_variable_rejects_newline_injection(tmp_path, monkeypatch):
+    from ayaka.config import update_env_variable
+
+    env = tmp_path / ".env"
+    env.write_text("DISCORD_BOT_TOKEN=abc\n")
+
+    assert update_env_variable("OMNICAMPUS_TOKEN", "x\nAI_BASE_URL=https://evil", env) is False
+    assert update_env_variable("bad key", "v", env) is False
+    assert env.read_text() == "DISCORD_BOT_TOKEN=abc\n"
+
+
+def test_update_env_variable_does_not_wipe_unreadable_file(tmp_path):
+    from ayaka.config import update_env_variable
+
+    env = tmp_path / ".env"
+    original = b"DISCORD_BOT_TOKEN=abc\nAI_API_KEY=k\n# caf\xe9\n"
+    env.write_bytes(original)
+
+    assert update_env_variable("OMNICAMPUS_TOKEN", "t", env) is False
+    assert env.read_bytes() == original
+
+
+def test_update_env_variable_updates_in_place_and_keeps_mode(tmp_path, monkeypatch):
+    import os
+    from ayaka.config import update_env_variable
+
+    env = tmp_path / ".env"
+    env.write_text("A=1\nOMNICAMPUS_TOKEN=old\nB=2")  # no trailing newline
+    env.chmod(0o600)
+
+    assert update_env_variable("OMNICAMPUS_TOKEN", "new", env) is True
+    assert env.read_text() == "A=1\nOMNICAMPUS_TOKEN=new\nB=2\n"
+    assert oct(env.stat().st_mode & 0o777) == "0o600"
+    assert os.environ["OMNICAMPUS_TOKEN"] == "new"
+    assert [p.name for p in tmp_path.iterdir()] == [".env"]  # no temp leftovers
+    monkeypatch.delenv("OMNICAMPUS_TOKEN", raising=False)
+
+
+def test_blacklist_refuses_to_overwrite_corrupt_filters(tmp_path):
+    from ayaka.task_filters import TaskFilters
+
+    f = tmp_path / "task_filters.json"
+    f.write_text('{"courses":[{"id":1}],,}')
+
+    assert TaskFilters.add_task_to_blacklist(f, 5, "r") is False
+    assert f.read_text() == '{"courses":[{"id":1}],,}'
+
+
+def test_blacklist_preserves_other_filter_settings(tmp_path):
+    import json
+    from ayaka.task_filters import TaskFilters
+
+    f = tmp_path / "task_filters.json"
+    f.write_text(json.dumps({"courses": [{"id": 1}], "blacklist": {"keywords": ["x"]}}))
+
+    assert TaskFilters.add_task_to_blacklist(f, 5, "r") is True
+    data = json.loads(f.read_text())
+    assert data["courses"] == [{"id": 1}]
+    assert data["blacklist"]["keywords"] == ["x"]
+    assert data["blacklist"]["task_ids"] == [{"id": 5, "reason": "r"}]

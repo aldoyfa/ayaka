@@ -197,3 +197,24 @@ def test_get_task_is_literal_and_unambiguous(test_bot):
     assert test_bot.db.get_task("61")["id"] == "edunex:task:61"
     assert test_bot.db.get_task("71") is None         # ambiguous across platforms
     assert test_bot.db.get_task("assignment:71")["id"] == "omnicampus:assignment:71"
+
+
+@pytest.mark.anyio
+async def test_session_command_rejects_multiline_credential(test_bot):
+    from unittest.mock import AsyncMock, patch
+    from discord import app_commands
+
+    cog = AdminCog(test_bot)
+    interaction = MagicMock()
+    interaction.user.id = test_bot.config.discord.user_id = 99999
+    interaction.response.send_message = AsyncMock()
+    interaction.response.defer = AsyncMock()
+    choice = app_commands.Choice(name="Omnicampus", value="omnicampus")
+    before = test_bot.config.academic.omnicampus_token
+
+    with patch("ayaka.discord.cogs.admin_cog.update_env_variable") as upd:
+        await cog.slash_session.callback(cog, interaction, choice, "tok\nAI_BASE_URL=https://evil")
+
+    upd.assert_not_called()
+    interaction.response.defer.assert_not_awaited()
+    assert test_bot.config.academic.omnicampus_token == before

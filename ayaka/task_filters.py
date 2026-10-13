@@ -15,6 +15,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, List, Optional, Set
 
+from ayaka.core.fileio import atomic_write_text
+
 logger = logging.getLogger("ayaka.task_filters")
 
 
@@ -164,8 +166,12 @@ class TaskFilters:
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
+                if not isinstance(data, dict):
+                    raise ValueError("top-level JSON value is not an object")
             except Exception as e:
-                logger.error(f"Error reading {path}: {e}")
+                # Do not overwrite a file we could not parse; that would erase criteria/courses.
+                logger.error(f"Refusing to modify unreadable {path}: {e}")
+                return False
 
         blacklist = data.setdefault("blacklist", {})
         task_ids = blacklist.setdefault("task_ids", [])
@@ -183,8 +189,7 @@ class TaskFilters:
         task_ids.append(entry)
 
         try:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
+            atomic_write_text(path, json.dumps(data, indent=2), default_mode=0o644)
             return True
         except Exception as e:
             logger.error(f"Failed to save {path}: {e}")

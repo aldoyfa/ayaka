@@ -9,21 +9,37 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List
 
 from dotenv import load_dotenv
 
+from ayaka.core.fileio import atomic_write_text
+
+
+_ENV_KEY_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
+
+
+def is_safe_env_value(value: str) -> bool:
+    """Reject values that could smuggle extra lines/keys into a dotenv file."""
+    return not any(ch in value for ch in ("\n", "\r", "\x00"))
+
 
 def update_env_variable(key: str, value: str, env_path: Path | None = None) -> bool:
-    """Safely update or append a key=value pair in the .env file and update os.environ."""
+    """Safely update or append a key=value pair in the .env file and update os.environ.
+
+    Returns False (and changes nothing) if the key/value is unsafe, the existing
+    file cannot be read, or the write fails.
+    """
+    if not _ENV_KEY_RE.match(key) or not is_safe_env_value(value):
+        return False
+
     if env_path is None:
         env_path = Path(__file__).resolve().parent.parent / ".env"
 
-    os.environ[key] = value
-
-    lines = []
+    lines: list[str] = []
     found = False
     if env_path.is_file():
         try:
@@ -36,17 +52,21 @@ def update_env_variable(key: str, value: str, env_path: Path | None = None) -> b
                     else:
                         lines.append(line)
         except Exception:
-            pass
+            # Never rewrite a file we could not fully read: that would drop every other secret.
+            return False
+        if lines and not lines[-1].endswith("\n"):
+            lines[-1] += "\n"
 
     if not found:
         lines.append(f"{key}={value}\n")
 
     try:
-        with open(env_path, "w", encoding="utf-8") as f:
-            f.writelines(lines)
-        return True
+        atomic_write_text(env_path, "".join(lines))
     except Exception:
         return False
+
+    os.environ[key] = value
+    return True
 
 
 @dataclass

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from ayaka.config import Config
+from ayaka.core.fileio import atomic_write_text
 from ayaka.storage.db import Database
 
 logger = logging.getLogger("ayaka.services.google")
@@ -49,14 +50,12 @@ class GoogleSyncService:
             if not self.creds or not self.creds.valid:
                 if self.creds and self.creds.expired and self.creds.refresh_token:
                     self.creds.refresh(Request())
-                    with open(token_path, "w", encoding="utf-8") as token_file:
-                        token_file.write(self.creds.to_json())
+                    atomic_write_text(token_path, self.creds.to_json())
                 elif cred_path.is_file():
                     from google_auth_oauthlib.flow import InstalledAppFlow
                     flow = InstalledAppFlow.from_client_secrets_file(str(cred_path), SCOPES)
                     self.creds = flow.run_local_server(port=0)
-                    with open(token_path, "w", encoding="utf-8") as token_file:
-                        token_file.write(self.creds.to_json())
+                    atomic_write_text(token_path, self.creds.to_json())
                 else:
                     logger.warning("No Google credentials.json or token.json found.")
                     return False
