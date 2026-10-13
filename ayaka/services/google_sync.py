@@ -8,7 +8,9 @@ Also handles marking items as completed in Google Tasks when marked done in Ayak
 
 from __future__ import annotations
 
+import functools
 import logging
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -26,14 +28,28 @@ SCOPES = [
 ]
 
 
+def _locked(method):
+    """Serialize calls: googleapiclient/httplib2 objects are not thread-safe."""
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self.lock:
+            return method(self, *args, **kwargs)
+
+    return wrapper
+
+
 class GoogleSyncService:
     def __init__(self, config: Config, db: Database):
         self.config = config
         self.db = db
+        # Re-entrant so public methods can call each other; also used by ScheduleService.
+        self.lock = threading.RLock()
         self.creds = None
         self._calendar_service = None
         self._tasks_service = None
 
+    @_locked
     def authenticate(self) -> bool:
         """Authenticate with Google OAuth using token.json or credentials.json."""
         token_path = Path(self.config.google.token_file)
@@ -67,6 +83,7 @@ class GoogleSyncService:
             logger.error(f"Google authentication error: {e}")
             return False
 
+    @_locked
     def sync_task(self, task: dict[str, Any]) -> None:
         """Sync a single task to Google Calendar and/or Google Tasks based on config."""
         if not self._calendar_service or not self._tasks_service:
@@ -84,6 +101,7 @@ class GoogleSyncService:
         if calendar_id or tasks_id:
             self.db.update_google_ids(task["id"], calendar_id=calendar_id, tasks_id=tasks_id)
 
+    @_locked
     def sync_to_calendar(self, task: dict[str, Any]) -> Optional[str]:
         """Create or update deadline event in Google Calendar."""
         if not self._calendar_service:
@@ -140,6 +158,7 @@ class GoogleSyncService:
             logger.error(f"Error syncing to Google Calendar: {e}")
             return None
 
+    @_locked
     def sync_to_tasks(self, task: dict[str, Any]) -> Optional[str]:
         """Create or update to-do task in Google Tasks."""
         if not self._tasks_service:
@@ -184,6 +203,7 @@ class GoogleSyncService:
             logger.error(f"Error syncing to Google Tasks: {e}")
             return None
 
+    @_locked
     def mark_completed_in_google(self, task_id: str) -> None:
         """Mark task as completed in Google Tasks."""
         if not self._tasks_service:
@@ -203,6 +223,7 @@ class GoogleSyncService:
         except Exception as e:
             logger.error(f"Error updating task status in Google Tasks: {e}")
 
+    @_locked
     def delete_from_google(self, task_id: str) -> None:
         """Delete task from Google Tasks and Google Calendar if present."""
         if not self._tasks_service or not self._calendar_service:

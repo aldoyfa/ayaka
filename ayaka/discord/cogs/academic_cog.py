@@ -107,7 +107,7 @@ class AcademicCog(commands.Cog, name="Academic"):
         if success:
             if self.bot.google_sync:
                 try:
-                    self.bot.google_sync.mark_completed_in_google(real_id)
+                    await asyncio.to_thread(self.bot.google_sync.mark_completed_in_google, real_id)
                 except Exception as e:
                     logger.error(f"Error updating Google Tasks: {e}")
 
@@ -225,7 +225,7 @@ class AcademicCog(commands.Cog, name="Academic"):
         # Close the Google task before deleting locally (the lookup needs the row).
         if self.bot.google_sync and existing:
             try:
-                self.bot.google_sync.mark_completed_in_google(real_id)
+                await asyncio.to_thread(self.bot.google_sync.mark_completed_in_google, real_id)
             except Exception as e:
                 logger.error(f"Error updating Google Tasks for blacklisted task: {e}")
 
@@ -323,7 +323,7 @@ class AcademicCog(commands.Cog, name="Academic"):
         if success:
             if self.bot.google_sync:
                 try:
-                    self.bot.google_sync.mark_completed_in_google(real_id)
+                    await asyncio.to_thread(self.bot.google_sync.mark_completed_in_google, real_id)
                 except Exception as e:
                     logger.error(f"Error updating Google Tasks: {e}")
 
@@ -354,7 +354,7 @@ class AcademicCog(commands.Cog, name="Academic"):
         task, _ = self.bot.db.upsert_task(task_dict)
         if self.bot.google_sync:
             try:
-                self.bot.google_sync.sync_task(task)
+                await asyncio.to_thread(self.bot.google_sync.sync_task, task)
             except Exception:
                 pass
         await ctx.send(f"🌸 Added assignment **{title}** (`{task_id}`) due {due_dt.strftime('%Y-%m-%d %H:%M')}!")
@@ -368,7 +368,7 @@ class AcademicCog(commands.Cog, name="Academic"):
             TaskFilters.add_task_to_blacklist(self.bot.config.task_filters_file, int(num_part), reason=reason)
         if existing and self.bot.google_sync:
             try:
-                self.bot.google_sync.mark_completed_in_google(real_id)
+                await asyncio.to_thread(self.bot.google_sync.mark_completed_in_google, real_id)
             except Exception as e:
                 logger.error(f"Error updating Google Tasks for blacklisted task: {e}")
         self.bot.db.delete_task(real_id)

@@ -6,6 +6,7 @@ using OpenAI-compatible endpoints (Gemini, Groq, OpenRouter, DeepSeek).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -588,7 +589,7 @@ Key Persona & Behavior Guidelines:
                     except Exception:
                         args = {}
 
-                    tool_output = self._execute_tool(fn_name, args)
+                    tool_output = await asyncio.to_thread(self._execute_tool, fn_name, args)
                     if tool_output and not tool_output.startswith("Error"):
                         tool_results_summary.append(tool_output)
                     messages.append({

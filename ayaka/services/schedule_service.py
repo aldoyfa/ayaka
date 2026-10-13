@@ -53,14 +53,15 @@ class ScheduleService:
         t_max = day_end_local.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
         try:
-            res = self.google_sync._calendar_service.events().list(
-                calendarId=cal_id,
-                timeMin=t_min,
-                timeMax=t_max,
-                singleEvents=True,
-                orderBy="startTime",
-                maxResults=50,
-            ).execute()
+            with self.google_sync.lock:
+                res = self.google_sync._calendar_service.events().list(
+                    calendarId=cal_id,
+                    timeMin=t_min,
+                    timeMax=t_max,
+                    singleEvents=True,
+                    orderBy="startTime",
+                    maxResults=50,
+                ).execute()
 
             items = res.get("items", [])
             parsed_events: list[dict[str, Any]] = []
@@ -165,14 +166,15 @@ class ScheduleService:
         t_max = day_end_local.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
         try:
-            res = self.google_sync._calendar_service.events().list(
-                calendarId=cal_id,
-                timeMin=t_min,
-                timeMax=t_max,
-                singleEvents=True,
-                orderBy="startTime",
-                maxResults=100,
-            ).execute()
+            with self.google_sync.lock:
+                res = self.google_sync._calendar_service.events().list(
+                    calendarId=cal_id,
+                    timeMin=t_min,
+                    timeMax=t_max,
+                    singleEvents=True,
+                    orderBy="startTime",
+                    maxResults=100,
+                ).execute()
 
             items = res.get("items", [])
             parsed_events: list[dict[str, Any]] = []

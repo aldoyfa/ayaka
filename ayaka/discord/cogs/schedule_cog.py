@@ -5,6 +5,7 @@ Handles university lecture schedule views from Google Calendar.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Optional, TYPE_CHECKING
 import discord
 from discord import app_commands
@@ -37,16 +38,20 @@ class ScheduleCog(commands.Cog, name="Schedule"):
         period: Optional[app_commands.Choice[str]] = None,
     ) -> None:
         period_val = period.value if period else "today"
-        embed = build_schedule_embed(
+        # Calendar + lazy SIX lookups are blocking network calls; defer and run in a thread.
+        await interaction.response.defer(thinking=True)
+        embed = await asyncio.to_thread(
+            build_schedule_embed,
             schedule_service=self.bot.schedule_service,
             author_icon=self.bot.get_author_icon(),
             period=period_val,
         )
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
 
     @commands.command(name="schedule", aliases=["classes"])
     async def cmd_schedule(self, ctx: commands.Context, period: str = "today") -> None:
-        embed = build_schedule_embed(
+        embed = await asyncio.to_thread(
+            build_schedule_embed,
             schedule_service=self.bot.schedule_service,
             author_icon=self.bot.get_author_icon(),
             period=period,

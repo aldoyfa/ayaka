@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, TYPE_CHECKING
 
@@ -49,7 +50,7 @@ class TaskActionView(discord.ui.View):
         if success:
             if self.google_sync:
                 try:
-                    self.google_sync.mark_completed_in_google(self.task_id)
+                    await asyncio.to_thread(self.google_sync.mark_completed_in_google, self.task_id)
                 except Exception as e:
                     logger.error(f"Error updating Google Tasks: {e}")
 

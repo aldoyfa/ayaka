@@ -27,6 +27,85 @@ from ayaka.storage.db import Database
 logger = logging.getLogger("ayaka.scheduler")
 
 
+def _apply_platform_result(
+    db: Database,
+    google_sync: Optional[GoogleSyncService],
+    stats: dict[str, Any],
+    plat_name: str,
+    tasks: list[Any],
+    meetings: list[Any],
+    exc: Optional[Exception],
+) -> None:
+    """Persist one platform's fetch result and push changes to Google (blocking; run in a thread)."""
+    if exc:
+        if isinstance(exc, SessionExpiredException):
+            logger.warning(f"Session expired for {plat_name}: {exc}")
+            db.log_sync(plat_name, "expired", str(exc))
+            stats["expired_sessions"].append(plat_name)
+        else:
+            logger.error(f"Error fetching from {plat_name}: {exc}")
+            db.log_sync(plat_name, "error", str(exc))
+        return
+
+    logger.info(f"Fetched {len(tasks)} items from {plat_name}.")
+
+    if meetings:
+        for m in meetings:
+            saved_m, is_new_m, was_upd_m = db.upsert_lecture_meeting(m)
+            if was_upd_m and saved_m.get("_topic_changed"):
+                stats["updated_tasks"] += 1
+                stats["updated_items"].append({
+                    "id": saved_m["id"],
+                    "title": f"Topik: {saved_m['topic']}",
+                    "platform": "six",
+                    "course": f"{saved_m['course_code']} ({saved_m['meeting_date']})",
+                    "due_date": "",
+                })
+        logger.info(f"Synchronized {len(meetings)} upcoming lecture meetings from SIX ITB.")
+
+    for t in tasks:
+        t_dict = t.to_dict() if hasattr(t, "to_dict") else t
+        saved_task, is_new = db.upsert_task(t_dict)
+
+        item_info = {
+            "id": saved_task["id"],
+            "title": saved_task.get("title", ""),
+            "platform": saved_task.get("platform", plat_name),
+            "course": saved_task.get("course_name") or saved_task.get("course_id") or "",
+            "due_date": saved_task.get("due_date", ""),
+        }
+
+        if saved_task.get("_is_newly_completed"):
+            stats["completed_tasks"] += 1
+            stats["completed_items"].append(item_info)
+        elif is_new:
+            if saved_task.get("is_completed") == 1:
+                stats["completed_tasks"] += 1
+                stats["completed_items"].append(item_info)
+            else:
+                stats["new_tasks"] += 1
+                stats["added_items"].append(item_info)
+        elif saved_task.get("_due_date_changed") or saved_task.get("_title_changed"):
+            stats["updated_tasks"] += 1
+            stats["updated_items"].append(item_info)
+
+        # Sync to Google if service enabled
+        if google_sync:
+            try:
+                if saved_task.get("is_completed") == 1:
+                    if saved_task.get("google_tasks_task_id"):
+                        google_sync.mark_completed_in_google(saved_task["id"])
+                    elif is_new:
+                        google_sync.sync_task(saved_task)
+                else:
+                    google_sync.sync_task(saved_task)
+            except Exception as e:
+                logger.error(f"Failed to sync task {saved_task['id']} to Google: {e}")
+
+    db.log_sync(plat_name, "success", f"Fetched {len(tasks)} items.")
+    db.clear_session_alert(plat_name)
+
+
 async def run_sync_cycle_async(
     config: Config,
     db: Database,
@@ -68,73 +147,8 @@ async def run_sync_cycle_async(
     results = await asyncio.gather(*fetch_coroutines)
 
     for plat_name, tasks, meetings, exc in results:
-        if exc:
-            if isinstance(exc, SessionExpiredException):
-                logger.warning(f"Session expired for {plat_name}: {exc}")
-                db.log_sync(plat_name, "expired", str(exc))
-                stats["expired_sessions"].append(plat_name)
-            else:
-                logger.error(f"Error fetching from {plat_name}: {exc}")
-                db.log_sync(plat_name, "error", str(exc))
-            continue
-
-        logger.info(f"Fetched {len(tasks)} items from {plat_name}.")
-
-        if meetings:
-            for m in meetings:
-                saved_m, is_new_m, was_upd_m = db.upsert_lecture_meeting(m)
-                if was_upd_m and saved_m.get("_topic_changed"):
-                    stats["updated_tasks"] += 1
-                    stats["updated_items"].append({
-                        "id": saved_m["id"],
-                        "title": f"Topik: {saved_m['topic']}",
-                        "platform": "six",
-                        "course": f"{saved_m['course_code']} ({saved_m['meeting_date']})",
-                        "due_date": "",
-                    })
-            logger.info(f"Synchronized {len(meetings)} upcoming lecture meetings from SIX ITB.")
-
-        for t in tasks:
-            t_dict = t.to_dict() if hasattr(t, "to_dict") else t
-            saved_task, is_new = db.upsert_task(t_dict)
-
-            item_info = {
-                "id": saved_task["id"],
-                "title": saved_task.get("title", ""),
-                "platform": saved_task.get("platform", plat_name),
-                "course": saved_task.get("course_name") or saved_task.get("course_id") or "",
-                "due_date": saved_task.get("due_date", ""),
-            }
-
-            if saved_task.get("_is_newly_completed"):
-                stats["completed_tasks"] += 1
-                stats["completed_items"].append(item_info)
-            elif is_new:
-                if saved_task.get("is_completed") == 1:
-                    stats["completed_tasks"] += 1
-                    stats["completed_items"].append(item_info)
-                else:
-                    stats["new_tasks"] += 1
-                    stats["added_items"].append(item_info)
-            elif saved_task.get("_due_date_changed") or saved_task.get("_title_changed"):
-                stats["updated_tasks"] += 1
-                stats["updated_items"].append(item_info)
-
-            # Sync to Google if service enabled
-            if google_sync:
-                try:
-                    if saved_task.get("is_completed") == 1:
-                        if saved_task.get("google_tasks_task_id"):
-                            google_sync.mark_completed_in_google(saved_task["id"])
-                        elif is_new:
-                            google_sync.sync_task(saved_task)
-                    else:
-                        google_sync.sync_task(saved_task)
-                except Exception as e:
-                    logger.error(f"Failed to sync task {saved_task['id']} to Google: {e}")
-
-        db.log_sync(plat_name, "success", f"Fetched {len(tasks)} items.")
-        db.clear_session_alert(plat_name)
+        # SQLite + Google API calls are blocking; keep them off the Discord event loop.
+        await asyncio.to_thread(_apply_platform_result, db, google_sync, stats, plat_name, tasks, meetings, exc)
 
     return stats
 
