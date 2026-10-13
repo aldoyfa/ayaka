@@ -31,7 +31,7 @@ class SixFetcher(BaseFetcher):
     def __init__(self, config: Config):
         super().__init__(config)
         self.cookie = config.academic.six_cookie
-        self.student_id = getattr(config.academic, "six_student_id", "18223113")
+        self.student_id = getattr(config.academic, "six_student_id", "")
         self.semester_code = getattr(config.academic, "six_semester_code", "2026-1")
         self.base_url = (
             config.academic.endpoints.six_base_url
@@ -212,6 +212,10 @@ class SixFetcher(BaseFetcher):
             logger.info("SIX ITB cookie not configured. Skipping lecture schedule scrape.")
             return []
 
+        if not self.student_id or not self.semester_code:
+            logger.warning("SIX student_id/semester_code not configured; skipping lecture schedule scrape.")
+            return []
+
         headers = self._get_headers()
         schedule_url = f"{self.BASE_URL}/app/mahasiswa:{self.student_id}+{self.semester_code}/kelas/jadwal/mahasiswa"
 
@@ -241,11 +245,18 @@ class SixFetcher(BaseFetcher):
                     "januari": 1, "februari": 2, "maret": 3, "april": 4, "mei": 5, "juni": 6,
                     "juli": 7, "agustus": 8, "september": 9, "oktober": 10, "november": 11, "desember": 12
                 }
-                current_month = 9
+                try:
+                    local_now = datetime.now(zoneinfo.ZoneInfo(getattr(self.config, "timezone", "Asia/Jakarta")))
+                except Exception:
+                    local_now = datetime.now(timezone.utc)
+                # Fallbacks only: cells normally carry "<day> <month> <year>".
+                current_month = local_now.month
                 try:
                     current_year = int(self.semester_code.split("-")[0])
+                    if self.semester_code.split("-")[1].strip() == "2":
+                        current_year += 1  # even semester runs Jan-Jun of the following year
                 except Exception:
-                    current_year = 2026
+                    current_year = local_now.year
 
                 for r in rows[1:]:
                     for td in r.find_all("td"):
@@ -260,7 +271,14 @@ class SixFetcher(BaseFetcher):
                         except ValueError:
                             continue
                         if len(parts) > 1 and parts[1].lower() in months:
-                            current_month = months[parts[1].lower()]
+                            new_month = months[parts[1].lower()]
+                            if len(parts) > 2 and parts[2].isdigit() and len(parts[2]) == 4:
+                                current_year = int(parts[2])
+                            elif new_month < current_month:
+                                current_year += 1  # no explicit year and the month wrapped (Dec -> Jan)
+                            current_month = new_month
+                        if not 1 <= day_num <= 31:
+                            continue
 
                         date_str = f"{current_year:04d}-{current_month:02d}-{day_num:02d}"
 

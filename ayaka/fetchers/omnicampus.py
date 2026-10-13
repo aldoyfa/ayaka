@@ -70,11 +70,11 @@ class OmnicampusFetcher(BaseFetcher):
         async with httpx.AsyncClient(headers=headers, timeout=20.0, follow_redirects=True) as client:
             async def _fetch_course_data(cid: int) -> list[AcademicTask]:
                 course_tasks: list[AcademicTask] = []
-                course_name = "GCI World 2026 September"
+                course_name = f"Course {cid}"
 
                 # 1. Course Metadata
                 try:
-                    c_resp = await client.get(f"{self.BASE_URL}/api/v3/courses/{cid}")
+                    c_resp = await client.get(f"{self.base_url}/api/v3/courses/{cid}")
                     if c_resp.status_code == 200:
                         course_name = c_resp.json().get("name", course_name)
                     elif c_resp.status_code in (401, 403):
@@ -86,7 +86,7 @@ class OmnicampusFetcher(BaseFetcher):
 
                 # 2. Homework / Assignments
                 try:
-                    a_resp = await client.get(f"{self.BASE_URL}/api/v6/student/courses/{cid}/assignments")
+                    a_resp = await client.get(f"{self.base_url}/api/v6/student/courses/{cid}/assignments")
                     if a_resp.status_code == 200:
                         assignments = a_resp.json().get("assignments", [])
                         for item in assignments:
@@ -110,7 +110,7 @@ class OmnicampusFetcher(BaseFetcher):
                                     title=title,
                                     description="Omnicampus Course Assignment / Homework",
                                     due_date=due,
-                                    url=f"{self.BASE_URL}/en/courses/{cid}/assignments/{aid}/",
+                                    url=f"{self.base_url}/en/courses/{cid}/assignments/{aid}/",
                                     is_completed=1 if is_submitted else 0,
                                 )
                             )
@@ -123,7 +123,7 @@ class OmnicampusFetcher(BaseFetcher):
 
                 # 3. Reports
                 try:
-                    r_resp = await client.get(f"{self.BASE_URL}/api/v4/courses/{cid}/user-reports")
+                    r_resp = await client.get(f"{self.base_url}/api/v4/courses/{cid}/user-reports")
                     if r_resp.status_code == 200:
                         reports_data = r_resp.json()
                         if isinstance(reports_data, list):
@@ -149,7 +149,7 @@ class OmnicampusFetcher(BaseFetcher):
                                         title=title,
                                         description=rep.get("description", "Course Final Report"),
                                         due_date=due,
-                                        url=f"{self.BASE_URL}/en/courses/{cid}/reports/{rid}/",
+                                        url=f"{self.base_url}/en/courses/{cid}/reports/{rid}/",
                                         is_completed=1 if is_submitted else 0,
                                     )
                                 )
@@ -162,7 +162,7 @@ class OmnicampusFetcher(BaseFetcher):
 
                 # 4. Questionnaires
                 try:
-                    q_resp = await client.get(f"{self.BASE_URL}/api/v4/courses/{cid}/user-questionnaires")
+                    q_resp = await client.get(f"{self.base_url}/api/v4/courses/{cid}/user-questionnaires")
                     if q_resp.status_code == 200:
                         q_data = q_resp.json()
                         if isinstance(q_data, list):
@@ -187,7 +187,7 @@ class OmnicampusFetcher(BaseFetcher):
                                         title=title,
                                         description="Session Attendance & Feedback Questionnaire",
                                         due_date=due,
-                                        url=f"{self.BASE_URL}/en/courses/{cid}/questionnaires/{qid}/",
+                                        url=f"{self.base_url}/en/courses/{cid}/questionnaires/{qid}/",
                                         is_completed=1 if is_answered else 0,
                                     )
                                 )

@@ -97,7 +97,7 @@ class AyakaBot(commands.Bot):
         # Register global app command tree error handler
         async def on_tree_error(interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
             logger.error(f"Slash command error on /{interaction.command.name if interaction.command else 'unknown'}: {error}", exc_info=True)
-            msg = f">>> *\"Umm, Master, I encountered an unexpected error while executing that command! (｡•́︿•̀｡)\\n`{str(error)}`\"*"
+            msg = ">>> *\"Umm, Master, I encountered an unexpected error while executing that command! (｡•́︿•̀｡)\"*"
             try:
                 if interaction.response.is_done():
                     await interaction.followup.send(msg, ephemeral=True)

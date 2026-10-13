@@ -207,3 +207,35 @@ async def test_run_sync_cycle_async_orchestration(tmp_path):
         meeting = db.get_lecture_meeting("2026-10-30", course_code="IF5152")
         assert meeting is not None
         assert meeting["topic"] == "Neural Radiance Fields"
+
+
+@pytest.mark.anyio
+async def test_six_calendar_year_from_cell_and_rollover():
+    config = Config.load()
+    config.academic.six_cookie = "c"
+    config.academic.six_student_id = "1"
+    config.academic.six_semester_code = "2026-1"
+    fetcher = SixFetcher(config)
+
+    def cell(day_text, pid):
+        return (f'<td><div>{day_text}</div><a class="linkpertemuan" '
+                f'data-url="/kelas/pertemuan/{pid}/mhs/1" data-kuliah="IF5152 X">(Kuliah R) 09:00-10:00</a></td>')
+
+    html = ('<table class="table-bordered"><tr><th>h</th></tr><tr>'
+            + cell("30 Desember", 1) + cell("2 Januari", 2) + cell("5 Februari 2027", 3)
+            + "</tr></table>")
+
+    async def mock_get(url, **kw):
+        r = MagicMock(); r.status_code = 200; r.text = html; r.url = url
+        return r
+
+    with patch("httpx.AsyncClient.get", side_effect=mock_get):
+        meetings = await fetcher.fetch_lecture_meetings_async(fetch_modals=False, future_only=False)
+
+    assert [m["meeting_date"] for m in meetings] == ["2026-12-30", "2027-01-02", "2027-02-05"]
+
+
+def test_missing_student_id_is_not_defaulted():
+    config = Config.load()
+    config.academic.six_student_id = ""
+    assert SixFetcher(config).student_id == ""

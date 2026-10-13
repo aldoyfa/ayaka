@@ -160,7 +160,7 @@ You can fine-tune academic sync intervals, semester codes, and student ID direct
     },
     "six": {
       "base_url": "https://six.itb.ac.id",
-      "student_id": "18223113",
+      "student_id": "<your-NIM>",
       "semester_code": "2026-1"
     },
     "omnicampus": {

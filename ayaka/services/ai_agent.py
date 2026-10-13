@@ -555,7 +555,7 @@ Key Persona & Behavior Guidelines:
             try:
                 resp = await client.post(endpoint, json=payload, headers=headers)
                 if resp.status_code != 200:
-                    logger.error(f"AI API returned error {resp.status_code}: {resp.text}")
+                    logger.error(f"AI API returned error {resp.status_code}: {resp.text[:300]}")
                     return (
                         f"Umm Master, I encountered an issue connecting to the thought realm! "
                         f"(HTTP {resp.status_code}). Please try again in a moment. 🌸"
@@ -620,7 +620,7 @@ Key Persona & Behavior Guidelines:
                     history.append({"role": "assistant", "content": final_reply})
                     return final_reply
                 else:
-                    logger.error(f"Followup error {followup_resp.status_code}: {followup_resp.text}")
+                    logger.error(f"Followup error {followup_resp.status_code}: {followup_resp.text[:300]}")
                     summary_text = "\n".join([f"• {s}" for s in tool_results_summary])
                     return (
                         "Master, I performed your requested actions, but got slightly flustered formulating my words! "
@@ -630,4 +630,4 @@ Key Persona & Behavior Guidelines:
 
             except Exception as e:
                 logger.error(f"Error in AI chat agent: {e}", exc_info=True)
-                return f"Master, I got a little dizzy while processing that! ({str(e)}) Please forgive me! (｡•́︿•̀｡)"
+                return "Master, I got a little dizzy while processing that! Please try again in a moment. (｡•́︿•̀｡)"

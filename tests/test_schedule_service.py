@@ -135,7 +135,7 @@ def test_meeting_enrichment_and_modal_formatting(tmp_path):
 
     # 1. Insert modal meeting into DB
     meeting_data = {
-        "id": "18223113_m123",
+        "id": "12345678_m123",
         "meeting_date": "2026-10-12",
         "course_code": "IF5152",
         "course_name": "Visi Komputer",

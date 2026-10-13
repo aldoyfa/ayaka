@@ -248,6 +248,7 @@ async def academic_sync_loop(
     while not bot.is_closed():
         try:
             stats = await run_sync_cycle_async(config, db, "all", google_sync)
+            await asyncio.to_thread(db.prune_ai_history)
             for plat_name in stats.get("expired_sessions", []):
                 if await asyncio.to_thread(db.should_alert_session_expired, plat_name):
                     sent = await bot.send_session_expired_alert(plat_name)

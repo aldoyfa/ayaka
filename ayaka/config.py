@@ -85,7 +85,7 @@ class GoogleConfig:
     token_file: str = "token.json"
     calendar_id: str = "primary"
     tasks_list_id: str = "@default"
-    schedule_calendar_id: str = "5fcc5f6e8055f705bee196c5f2edb626badfee2551ca19995ca4663e2a93c3b4@group.calendar.google.com"
+    schedule_calendar_id: str = ""
     sync_calendar: bool = False
     sync_tasks: bool = True
 
@@ -117,7 +117,7 @@ class AcademicConfig:
     omnicampus_token: str = ""
     omnicampus_cookie: str = ""
     edunex_period_id: int = 26
-    six_student_id: str = "18223113"
+    six_student_id: str = ""
     six_semester_code: str = "2026-1"
     omnicampus_course_ids: List[int] = field(default_factory=lambda: [170])
     endpoints: PlatformEndpoints = field(default_factory=PlatformEndpoints)
@@ -285,7 +285,7 @@ class Config:
         raw_period = os.getenv("EDUNEX_PERIOD_ID", "").strip()
         period_id = int(raw_period) if raw_period.isdigit() else int(edunex_cfg.get("period_id", 26))
 
-        six_student_id = os.getenv("SIX_STUDENT_ID", str(six_cfg.get("student_id", "18223113"))).strip()
+        six_student_id = os.getenv("SIX_STUDENT_ID", str(six_cfg.get("student_id", ""))).strip()
         six_semester_code = os.getenv("SIX_SEMESTER_CODE", str(six_cfg.get("semester_code", "2026-1"))).strip()
 
         raw_omni_courses = os.getenv("OMNICAMPUS_COURSE_IDS", "").strip()
@@ -378,7 +378,7 @@ class Config:
                 tasks_list_id=os.getenv("GOOGLE_TASKS_LIST_ID", google_data.get("tasks_list_id", "@default")).strip(),
                 schedule_calendar_id=os.getenv(
                     "GOOGLE_SCHEDULE_CALENDAR_ID",
-                    google_data.get("schedule_calendar_id", "5fcc5f6e8055f705bee196c5f2edb626badfee2551ca19995ca4663e2a93c3b4@group.calendar.google.com"),
+                    google_data.get("schedule_calendar_id", ""),
                 ).strip(),
                 sync_calendar=bool(str(os.getenv("GOOGLE_SYNC_CALENDAR", google_data.get("sync_calendar", False))).lower() in ("true", "1", "yes")),
                 sync_tasks=bool(str(os.getenv("GOOGLE_SYNC_TASKS", google_data.get("sync_tasks", True))).lower() in ("true", "1", "yes")),

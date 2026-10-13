@@ -201,7 +201,7 @@ class AdminCog(commands.Cog, name="Admin"):
                     verified = (r.status_code in (200, 302))
                     verif_msg = "🟢 Saved to `.env` & active!"
             except Exception as e:
-                verif_msg = f"🟡 Saved to `.env`, but test ping returned: {str(e)}"
+                verif_msg = f"🟡 Saved to `.env`, but the test request failed ({type(e).__name__})."
 
         from ayaka.scheduler import run_sync_cycle_async
         asyncio.create_task(run_sync_cycle_async(self.bot.config, self.bot.db, plat_val, self.bot.google_sync))

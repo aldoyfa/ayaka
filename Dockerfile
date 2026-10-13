@@ -26,8 +26,11 @@ COPY task_filters.json .
 COPY dialogues.json .
 COPY ayaka/ ./ayaka/
 
-# Create directory for persistent state
-RUN mkdir -p /app/data
+# Run as an unprivileged user (uid 1000 matches the usual host owner of bind-mounted files)
+RUN useradd --uid 1000 --create-home ayaka \
+    && mkdir -p /app/data \
+    && chown -R ayaka:ayaka /app
+USER ayaka
 
 # Default command: run Ayaka 24/7 daemon bot
 CMD ["python", "-m", "ayaka.main"]
