@@ -131,3 +131,42 @@ def test_format_uptime():
 
     delta_hours = timedelta(hours=2)
     assert format_uptime(delta_hours) == "2h"
+
+
+@pytest.fixture
+def frozen_time(monkeypatch):
+    """Freeze datetime.now() inside ayaka.core.time to Tue 2026-10-13 21:42 WIB."""
+    import ayaka.core.time as t
+    from datetime import datetime as real_dt
+
+    fixed = real_dt(2026, 10, 13, 21, 42, tzinfo=t.get_timezone("Asia/Jakarta"))
+
+    class FakeDT(real_dt):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed if tz is None else fixed.astimezone(tz)
+
+    monkeypatch.setattr(t, "datetime", FakeDT)
+    return fixed
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("15 Oktober", "2026-10-15 23:59"),
+    ("15 okt 21.00", "2026-10-15 21:00"),
+    ("10 Januari", "2027-01-10 23:59"),            # already past this year -> next year
+    ("Jumat 17.00", "2026-10-16 17:00"),
+    ("kamis jam 8 pagi", "2026-10-15 08:00"),
+    ("Senin, 15 Oktober 2026", "2026-10-15 23:59"),  # explicit date wins over weekday name
+    ("besok jam 12 malam", "2026-10-15 00:00"),     # midnight at end of tomorrow
+    ("2026-10-15 24:00", "2026-10-16 00:00"),
+])
+def test_due_date_phrases(frozen_time, text, expected):
+    from ayaka.core.time import parse_user_due_date
+
+    got = parse_user_due_date(text, "Asia/Jakarta")
+    assert got is not None and got.strftime("%Y-%m-%d %H:%M") == expected
+
+
+def test_unparseable_due_date_is_none(frozen_time):
+    from ayaka.core.time import parse_user_due_date
+    assert parse_user_due_date("whenever", "Asia/Jakarta") is None

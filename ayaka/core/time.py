@@ -36,6 +36,17 @@ MONTH_MAP = {
 }
 
 
+WEEKDAY_MAP = {
+    "senin": 0, "monday": 0, "mon": 0,
+    "selasa": 1, "tuesday": 1, "tue": 1,
+    "rabu": 2, "wednesday": 2, "wed": 2,
+    "kamis": 3, "thursday": 3, "thu": 3,
+    "jumat": 4, "jum'at": 4, "friday": 4, "fri": 4,
+    "sabtu": 5, "saturday": 5, "sat": 5,
+    "minggu": 6, "sunday": 6, "sun": 6,
+}
+
+
 def parse_user_due_date(due_str: Optional[str], tz_name: str = "Asia/Jakarta") -> Optional[datetime]:
     """Parse user-provided deadline into a timezone-aware datetime.
 
@@ -114,6 +125,28 @@ def parse_user_due_date(due_str: Optional[str], tz_name: str = "Asia/Jakarta") -
                 except ValueError:
                     pass
 
+    if target_date is None and "lusa" not in s_lower and "besok" not in s_lower \
+            and "tomorrow" not in s_lower and "hari ini" not in s_lower and "today" not in s_lower \
+            and "minggu depan" not in s_lower and "next week" not in s_lower:
+        # E. Day + month name without a year: "15 Oktober", "15 okt 21.00" -> next occurrence
+        dm = re.search(r"\b(\d{1,2})\s+([a-zA-Z]+)\b", s_lower)
+        if dm and dm.group(2) in MONTH_MAP:
+            try:
+                candidate = date(now.year, MONTH_MAP[dm.group(2)], int(dm.group(1)))
+                if candidate < now.date():
+                    candidate = date(now.year + 1, MONTH_MAP[dm.group(2)], int(dm.group(1)))
+                target_date = candidate
+                date_matched_span = dm.span()
+            except ValueError:
+                pass
+
+        # F. Weekday name: next occurrence (never today; use "hari ini" for that)
+        if target_date is None:
+            wd = re.search(r"\b(" + "|".join(re.escape(k) for k in WEEKDAY_MAP) + r")\b", s_lower)
+            if wd:
+                ahead = (WEEKDAY_MAP[wd.group(1)] - now.weekday()) % 7 or 7
+                target_date = now.date() + timedelta(days=ahead)
+
     # Exclude matched date span when searching for time (prevents DD.MM from being mistaken for HH.MM)
     time_search_str = s_lower
     if date_matched_span:
@@ -125,6 +158,7 @@ def parse_user_due_date(due_str: Optional[str], tz_name: str = "Asia/Jakarta") -
     minute = None
     second = 0
     time_specified = False
+    roll_day = False  # "12 malam" / "24.00" mean midnight at the END of the named day
 
     time_match = re.search(r"(?:(?:jam|pukul)\s*)?(\b\d{1,2})[.:](\d{2})(?:[.:](\d{2}))?\s*(am|pm)?\b", time_search_str)
     if time_match:
@@ -137,12 +171,18 @@ def parse_user_due_date(due_str: Optional[str], tz_name: str = "Asia/Jakarta") -
                 h += 12
             elif ampm == "am" and h == 12:
                 h = 0
+            elif "malam" in time_search_str and h == 12:
+                h = 0
+                roll_day = True
             elif "malam" in time_search_str and h < 12:
                 h += 12
             elif "sore" in time_search_str and h <= 6:
                 h += 12
             elif "siang" in time_search_str and 1 <= h <= 3:
                 h += 12
+            if h == 24:
+                h = 0
+                roll_day = True
             hour, minute, second = h % 24, m, sec
             time_specified = True
     elif re.search(r"(?:jam|pukul)\s*(\d{1,2})\s*(am|pm)?\b", time_search_str):
@@ -154,12 +194,18 @@ def parse_user_due_date(due_str: Optional[str], tz_name: str = "Asia/Jakarta") -
                 h += 12
             elif ampm == "am" and h == 12:
                 h = 0
+            elif "malam" in time_search_str and h == 12:
+                h = 0
+                roll_day = True
             elif "malam" in time_search_str and h < 12:
                 h += 12
             elif "sore" in time_search_str and h <= 6:
                 h += 12
             elif "siang" in time_search_str and 1 <= h <= 3:
                 h += 12
+            if h == 24:
+                h = 0
+                roll_day = True
             hour, minute, second = h % 24, 0, 0
             time_specified = True
     elif re.search(r"\b(\d{1,2})\s*(am|pm)\b", time_search_str):
@@ -203,7 +249,8 @@ def parse_user_due_date(due_str: Optional[str], tz_name: str = "Asia/Jakarta") -
     if not time_specified:
         hour, minute, second = 23, 59, 0
 
-    return datetime(target_date.year, target_date.month, target_date.day, hour, minute, second, tzinfo=tz)
+    result = datetime(target_date.year, target_date.month, target_date.day, hour, minute, second, tzinfo=tz)
+    return result + timedelta(days=1) if roll_day else result
 
 
 def parse_natural_due_date(due_str: Optional[str], tz_name: str = "Asia/Jakarta") -> datetime:

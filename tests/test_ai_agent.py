@@ -162,3 +162,18 @@ def test_destructive_tools_refuse_ambiguous_match(test_config, test_db, tool):
     assert res.startswith("Error") and "matches 2 tasks" in res
     tasks = test_db.list_tasks(include_completed=True)
     assert len(tasks) == 2 and not any(t["is_completed"] for t in tasks)
+
+
+def test_add_task_refuses_unparseable_due_date(test_config, test_db):
+    agent = AIAgent(config=test_config, db=test_db)
+
+    res = agent._execute_tool("add_task", {"title": "Report", "due_date": "whenever you like"})
+
+    assert res.startswith("Error") and "whenever you like" in res
+    assert test_db.list_tasks(include_completed=True) == []
+
+
+def test_add_task_without_due_date_still_defaults(test_config, test_db):
+    agent = AIAgent(config=test_config, db=test_db)
+    res = agent._execute_tool("add_task", {"title": "Report"})
+    assert "Successfully added task" in res

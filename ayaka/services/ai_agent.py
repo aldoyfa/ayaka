@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 
 from ayaka.config import Config
-from ayaka.core.time import parse_natural_due_date
+from ayaka.core.time import parse_natural_due_date, parse_user_due_date
 from ayaka.services.google_sync import GoogleSyncService
 from ayaka.services.schedule_service import ScheduleService
 from ayaka.storage.db import Database
@@ -334,6 +334,13 @@ Key Persona & Behavior Guidelines:
         description: Optional[str] = None,
     ) -> str:
         """Add a new task and sync to Google Tasks."""
+        if not (title or "").strip():
+            return "Error: a task title is required. Ask Master what the task is called."
+        if due_date and due_date.strip() and parse_user_due_date(due_date, tz_name=self.config.timezone) is None:
+            return (
+                f"Error: could not understand the due date '{due_date}'. "
+                "Ask Master for an explicit date such as '2026-10-15 17:00' or 'besok 23.59'."
+            )
         parsed_dt = parse_natural_due_date(due_date, tz_name=self.config.timezone)
         task_id = f"manual:{uuid.uuid4().hex[:8]}"
 
