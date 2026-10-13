@@ -24,6 +24,8 @@ from ayaka.storage.db import Database
 
 logger = logging.getLogger("ayaka.services.ai_agent")
 
+MIN_TASK_QUERY_LEN = 2
+
 SYSTEM_PERSONA_PROMPT = """You are Ayaka (Kamisato Ayaka), Master's dedicated, loving, cheerful anime study companion and academic assistant.
 
 Key Persona & Behavior Guidelines:
@@ -270,9 +272,20 @@ Key Persona & Behavior Guidelines:
 
     # --- Tool Implementations ---
 
+    @staticmethod
+    def _ambiguous_match_message(action: str, query: str, matched: List[Dict[str, Any]]) -> str:
+        """Refuse bulk destructive actions; make the model ask Master for a specific task."""
+        options = "; ".join(f"'{t.get('title')}' (ID: {t['id']})" for t in matched[:8])
+        return (
+            f"Error: '{query}' matches {len(matched)} tasks, so nothing was {action}d. "
+            f"Ask Master which one, then retry with the exact ID. Candidates: {options}"
+        )
+
     def tool_complete_task(self, task_query: str) -> str:
         """Complete matching task by ID or title substring."""
-        query = task_query.strip().lower()
+        query = (task_query or "").strip().lower()
+        if len(query) < MIN_TASK_QUERY_LEN:
+            return f"Error: task query '{task_query}' is too short. Ask Master which task exactly."
         all_tasks = self.db.list_tasks(include_completed=False, limit=100)
 
         # 1. Exact ID match
@@ -295,6 +308,8 @@ Key Persona & Behavior Guidelines:
 
         if not matched:
             return f"No pending task matching '{task_query}' was found in the database."
+        if len(matched) > 1:
+            return self._ambiguous_match_message("complete", task_query, matched)
 
         results = []
         for t in matched:
@@ -385,7 +400,9 @@ Key Persona & Behavior Guidelines:
 
     def tool_delete_task(self, task_query: str) -> str:
         """Delete task from DB and Google."""
-        query = task_query.strip().lower()
+        query = (task_query or "").strip().lower()
+        if len(query) < MIN_TASK_QUERY_LEN:
+            return f"Error: task query '{task_query}' is too short. Ask Master which task exactly."
         all_tasks = self.db.list_tasks(include_completed=True, limit=100)
 
         matched = [t for t in all_tasks if str(t["id"]).lower() == query]
@@ -398,6 +415,8 @@ Key Persona & Behavior Guidelines:
 
         if not matched:
             return f"No task matching '{task_query}' was found to delete."
+        if len(matched) > 1:
+            return self._ambiguous_match_message("delete", task_query, matched)
 
         results = []
         for t in matched:

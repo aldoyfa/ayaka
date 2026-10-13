@@ -87,7 +87,7 @@ class AICog(commands.Cog, name="AI"):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
-        if message.author == self.bot.user:
+        if message.author == self.bot.user or not self.bot.is_owner_id(message.author.id):
             return
 
         is_dm = isinstance(message.channel, discord.DMChannel)

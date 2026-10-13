@@ -129,3 +129,36 @@ def test_ai_agent_system_prompt_language_rule(test_config, test_db):
     assert "Strict Language Matching" in prompt
     assert "You MUST ALWAYS respond in the EXACT SAME language as Master's MOST RECENT message." in prompt
 
+
+
+def _seed(db, *titles):
+    for i, title in enumerate(titles):
+        db.upsert_task({
+            "id": f"manual:{i:08d}x", "platform": "manual", "course_id": "IF1",
+            "title": title, "due_date": "2026-12-01T10:00:00+07:00",
+        })
+
+
+@pytest.mark.parametrize("tool", ["delete_task", "complete_task"])
+@pytest.mark.parametrize("query", ["", "   ", "a"])
+def test_destructive_tools_reject_blank_or_tiny_query(test_config, test_db, tool, query):
+    agent = AIAgent(config=test_config, db=test_db)
+    _seed(test_db, "Alpha", "Beta")
+
+    res = agent._execute_tool(tool, {"task_query": query})
+
+    assert res.startswith("Error")
+    tasks = test_db.list_tasks(include_completed=True)
+    assert len(tasks) == 2 and not any(t["is_completed"] for t in tasks)
+
+
+@pytest.mark.parametrize("tool", ["delete_task", "complete_task"])
+def test_destructive_tools_refuse_ambiguous_match(test_config, test_db, tool):
+    agent = AIAgent(config=test_config, db=test_db)
+    _seed(test_db, "Report draft", "Report final")
+
+    res = agent._execute_tool(tool, {"task_query": "report"})
+
+    assert res.startswith("Error") and "matches 2 tasks" in res
+    tasks = test_db.list_tasks(include_completed=True)
+    assert len(tasks) == 2 and not any(t["is_completed"] for t in tasks)

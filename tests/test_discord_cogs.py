@@ -105,3 +105,60 @@ async def test_admin_cog_slash_session(test_bot, monkeypatch):
         interaction.response.defer.assert_awaited_once()
         interaction.followup.send.assert_awaited_once()
 
+
+
+def test_owner_check_fails_closed(test_bot):
+    test_bot.config.discord.user_id = 0
+    assert test_bot.is_owner_id(0) is False
+    assert test_bot.is_owner_id(123) is False
+
+    test_bot.config.discord.user_id = 42
+    assert test_bot.is_owner_id(42) is True
+    assert test_bot.is_owner_id(43) is False
+
+
+@pytest.mark.anyio
+async def test_non_owner_is_blocked_on_slash_and_prefix(test_bot):
+    from unittest.mock import AsyncMock
+
+    test_bot.config.discord.user_id = 42
+    test_bot.tree.sync = AsyncMock(return_value=[])
+    await test_bot.setup_hook()
+
+    stranger = MagicMock()
+    stranger.user.id = 7
+    stranger.response.send_message = AsyncMock()
+    assert await test_bot.tree.interaction_check(stranger) is False
+    stranger.response.send_message.assert_awaited_once()
+
+    owner = MagicMock()
+    owner.user.id = 42
+    assert await test_bot.tree.interaction_check(owner) is True
+
+    ctx = MagicMock()
+    ctx.author.id = 7
+    ctx.command = None
+    try:
+        assert await test_bot.can_run(ctx) is False
+    except Exception as exc:  # CheckFailure is also an acceptable "blocked" outcome
+        from discord.ext import commands
+        assert isinstance(exc, commands.CheckFailure)
+    ctx.author.id = 42
+    assert await test_bot.can_run(ctx) is True
+
+
+@pytest.mark.anyio
+async def test_ai_listener_ignores_non_owner(test_bot):
+    from unittest.mock import AsyncMock
+
+    test_bot.config.discord.user_id = 42
+    test_bot.ai_agent.chat = AsyncMock(return_value="hi")
+    cog = AICog(test_bot)
+
+    msg = MagicMock()
+    msg.author.id = 7
+    msg.content = "delete everything"
+    msg.mentions = [test_bot.user]
+    await cog.on_message(msg)
+
+    test_bot.ai_agent.chat.assert_not_awaited()

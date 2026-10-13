@@ -65,6 +65,11 @@ class AyakaBot(commands.Bot):
         )
         self.start_time = datetime.now(timezone.utc)
 
+    def is_owner_id(self, user_id: int) -> bool:
+        """True only for the configured owner. Fails closed when DISCORD_USER_ID is unset."""
+        owner_id = self.config.discord.user_id
+        return bool(owner_id) and user_id == owner_id
+
     def get_author_icon(self) -> str:
         """Return the bot's actual profile avatar or high-quality PNG fallback."""
         if self.user and self.user.display_avatar:
@@ -93,6 +98,25 @@ class AyakaBot(commands.Bot):
 
         self.tree.on_error = on_tree_error
 
+        # Owner-only gate for every slash and prefix command
+        async def owner_only_interaction(interaction: discord.Interaction) -> bool:
+            if self.is_owner_id(interaction.user.id):
+                return True
+            try:
+                await interaction.response.send_message(
+                    "Sorry, Ayaka only serves her Master. (｡•́︿•̀｡)", ephemeral=True
+                )
+            except Exception:
+                pass
+            return False
+
+        self.tree.interaction_check = owner_only_interaction
+
+        async def owner_only_prefix(ctx: commands.Context) -> bool:
+            return self.is_owner_id(ctx.author.id)
+
+        self.add_check(owner_only_prefix)
+
         # Sync slash commands globally
         logger.info("Ayaka Discord Bot syncing application slash commands globally...")
         try:
@@ -100,6 +124,11 @@ class AyakaBot(commands.Bot):
             logger.info(f"Successfully synced {len(synced)} global slash commands.")
         except Exception as e:
             logger.error(f"Failed to sync slash commands globally: {e}")
+
+    async def on_command_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
+        if isinstance(error, commands.CheckFailure):
+            return  # non-owner attempt; stay silent
+        logger.error(f"Prefix command error: {error}", exc_info=error)
 
     async def on_ready(self) -> None:
         """Called when the client is done preparing the data received from Discord."""
