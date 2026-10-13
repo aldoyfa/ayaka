@@ -361,13 +361,17 @@ class AcademicCog(commands.Cog, name="Academic"):
 
     @commands.command(name="blacklist", aliases=["ignore"])
     async def cmd_blacklist(self, ctx: commands.Context, task_id: str, *, reason: str = "Ignored via command") -> None:
-        num_part = task_id.split(":", 1)[1] if ":" in task_id else task_id
+        existing = self.bot.db.get_task(task_id.strip())
+        real_id = existing["id"] if existing else task_id.strip()
+        num_part = real_id.rsplit(":", 1)[-1]
         if num_part.isdigit():
             TaskFilters.add_task_to_blacklist(self.bot.config.task_filters_file, int(num_part), reason=reason)
-        self.bot.db.delete_task(task_id)
-        if not task_id.startswith("edunex:") and not task_id.startswith("six:"):
-            self.bot.db.delete_task(f"edunex:{task_id}")
-            self.bot.db.delete_task(f"six:{task_id}")
+        if existing and self.bot.google_sync:
+            try:
+                self.bot.google_sync.mark_completed_in_google(real_id)
+            except Exception as e:
+                logger.error(f"Error updating Google Tasks for blacklisted task: {e}")
+        self.bot.db.delete_task(real_id)
         await ctx.send(f"🚫 Task `{task_id}` has been blacklisted and removed from active tracking!")
 
     @commands.command(name="upcoming")
