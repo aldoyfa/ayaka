@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Optional
 import discord
 
+from ayaka.discord.safe import safe_http_url
+
 
 class AttendanceActionView(discord.ui.View):
     """Interactive action buttons for class attendance reminder."""
@@ -16,6 +18,9 @@ class AttendanceActionView(discord.ui.View):
         teams_url: Optional[str] = None,
     ):
         super().__init__(timeout=None)
+        six_url = safe_http_url(six_url, "https://six.itb.ac.id")
+        edunex_url = safe_http_url(edunex_url, "https://edunex.itb.ac.id")
+        teams_url = safe_http_url(teams_url)
         self.add_item(
             discord.ui.Button(
                 label="Open SIX",
@@ -96,6 +101,9 @@ class ClassStartActionView(discord.ui.View):
         six_url: str = "https://six.itb.ac.id",
     ):
         super().__init__(timeout=None)
+        six_url = safe_http_url(six_url, "https://six.itb.ac.id")
+        edunex_url = safe_http_url(edunex_url)
+        teams_url = safe_http_url(teams_url)
         if edunex_url:
             self.add_item(
                 discord.ui.Button(

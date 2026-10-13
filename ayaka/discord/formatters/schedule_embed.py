@@ -7,6 +7,8 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 import discord
 
+from ayaka.discord.safe import clip
+
 
 def format_meeting_field_value(ev: dict[str, Any], include_links: bool = True) -> str:
     """Format rich modal details of a lecture meeting for Discord embed fields."""
@@ -72,7 +74,7 @@ def format_meeting_field_value(ev: dict[str, Any], include_links: bool = True) -
         if link_parts:
             lines.append("🔗 " + " • ".join(link_parts))
 
-    return "\n".join(lines)
+    return clip("\n".join(lines))
 
 
 def build_schedule_embed(

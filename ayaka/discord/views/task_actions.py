@@ -14,6 +14,8 @@ from typing import Any, TYPE_CHECKING
 
 import discord
 
+from ayaka.discord.safe import safe_http_url
+
 if TYPE_CHECKING:
     from ayaka.storage.db import Database
     from ayaka.dialogue import DialogueManager
@@ -115,8 +117,8 @@ class TaskActionView(discord.ui.View):
         self.google_sync = google_sync
 
         # If assignment has a valid web link, add an external Link Button
-        task_url = task.get("url")
-        if task_url and task_url.startswith("http"):
+        task_url = safe_http_url(task.get("url"))
+        if task_url:
             self.add_item(
                 discord.ui.Button(
                     label="Open Assignment",

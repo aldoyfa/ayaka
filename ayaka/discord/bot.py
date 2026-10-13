@@ -17,6 +17,7 @@ from discord.ext import commands
 from ayaka.config import Config
 from ayaka.dialogue import DialogueManager, format_discord_timestamp
 from ayaka.discord.cogs import AcademicCog, AdminCog, AICog, ScheduleCog
+from ayaka.discord.safe import clip, defang_code_block
 from ayaka.discord.constants import DEFAULT_ICON_PNG, MAIL_ICON_PNG
 from ayaka.discord.formatters import (
     build_reminder_embed,
@@ -52,7 +53,11 @@ class AyakaBot(commands.Bot):
     ) -> None:
         intents = discord.Intents.default()
         intents.message_content = True
-        super().__init__(command_prefix="!", intents=intents)
+        super().__init__(
+            command_prefix="!",
+            intents=intents,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
 
         self.config = config
         self.db = db
@@ -214,7 +219,7 @@ class AyakaBot(commands.Bot):
 
             snippet = email_data.get("snippet", "")
             if snippet:
-                embed.add_field(name="📄 Message Preview", value=f"```{snippet[:450]}```", inline=False)
+                embed.add_field(name="📄 Message Preview", value=f"```{defang_code_block(snippet[:450])}```", inline=False)
 
             embed.set_footer(text="Gmail Priority Monitor • Please verify in your inbox")
             await user.send(embed=embed)
@@ -346,7 +351,7 @@ class AyakaBot(commands.Bot):
             end_str = event["end_dt"].strftime("%H:%M")
 
             embed = discord.Embed(
-                title=f"🔔 Class Starting: {event['summary']} 📚✨",
+                title=clip(f"🔔 Class Starting: {event['summary']} 📚✨", 256),
                 description=(
                     f">>> *\"Master! Your class **{event['summary']}** is starting right now! ({start_str} - {end_str} WIB). "
                     f"Let's join the lecture hall or open the classroom stream and dive into today's lesson! (๑•̀ㅂ•́)و✧ 🔥\"*"
@@ -362,13 +367,13 @@ class AyakaBot(commands.Bot):
             if detail.get("activity_type"):
                 embed.add_field(name="🏷️ Activity Type", value=f"`{detail['activity_type']}`", inline=True)
             if detail.get("lecturer"):
-                embed.add_field(name="👨‍🏫 Lecturer", value=detail["lecturer"], inline=False)
+                embed.add_field(name="👨‍🏫 Lecturer", value=clip(detail["lecturer"]), inline=False)
             if detail.get("topic"):
-                embed.add_field(name="📖 Topic", value=detail["topic"], inline=False)
+                embed.add_field(name="📖 Topic", value=clip(detail["topic"]), inline=False)
             if detail.get("attendance_window"):
-                embed.add_field(name="📝 Attendance Info", value=detail["attendance_window"], inline=False)
+                embed.add_field(name="📝 Attendance Info", value=clip(detail["attendance_window"]), inline=False)
             if detail.get("notes"):
-                embed.add_field(name="💬 Notes", value=detail["notes"], inline=False)
+                embed.add_field(name="💬 Notes", value=clip(detail["notes"]), inline=False)
 
             raw_durl = detail.get("detail_url") or ""
             if raw_durl.startswith("/"):
@@ -404,7 +409,7 @@ class AyakaBot(commands.Bot):
             end_str = event["end_dt"].strftime("%H:%M")
 
             embed = discord.Embed(
-                title=f"⏳ Upcoming Class: {event['summary']} (in {minutes_before} min) 🎒✨",
+                title=clip(f"⏳ Upcoming Class: {event['summary']} (in {minutes_before} min) 🎒✨", 256),
                 description=(
                     f">>> *\"Master! Heads up! 📢 Your class **{event['summary']}** starts in **{minutes_before} minutes** "
                     f"({start_str} - {end_str} WIB). "
@@ -421,9 +426,9 @@ class AyakaBot(commands.Bot):
             if detail.get("activity_type"):
                 embed.add_field(name="🏷️ Activity Type", value=f"`{detail['activity_type']}`", inline=True)
             if detail.get("lecturer"):
-                embed.add_field(name="👨‍🏫 Lecturer", value=detail["lecturer"], inline=False)
+                embed.add_field(name="👨‍🏫 Lecturer", value=clip(detail["lecturer"]), inline=False)
             if detail.get("topic"):
-                embed.add_field(name="📖 Topic", value=detail["topic"], inline=False)
+                embed.add_field(name="📖 Topic", value=clip(detail["topic"]), inline=False)
 
             raw_durl = detail.get("detail_url") or ""
             if raw_durl.startswith("/"):
@@ -458,7 +463,7 @@ class AyakaBot(commands.Bot):
             end_str = event["end_dt"].strftime("%H:%M")
 
             embed = discord.Embed(
-                title=f"⏰ Attendance Reminder: {event['summary']}! 📝✨",
+                title=clip(f"⏰ Attendance Reminder: {event['summary']}! 📝✨", 256),
                 description=(
                     f">>> *\"Master, heads up! 📢 Your class **{event['summary']}** will conclude in **10 minutes** "
                     f"(at **{end_str} WIB**)!\n\n"
@@ -470,14 +475,14 @@ class AyakaBot(commands.Bot):
             embed.set_author(name="Ayaka ✨", icon_url=self.get_author_icon())
 
             att_win = detail.get("attendance_window")
-            att_text = f"**{att_win}**\n\nEnsure your attendance is recorded on SIX / Edunex before the class concludes!" if att_win else "Ensure your attendance is recorded on SIX / Edunex / lecturer's form before the class concludes!"
+            att_text = f"**{clip(att_win, 800)}**\n\nEnsure your attendance is recorded on SIX / Edunex before the class concludes!" if att_win else "Ensure your attendance is recorded on SIX / Edunex / lecturer's form before the class concludes!"
             embed.add_field(
                 name="⚠️ Attendance Check",
                 value=att_text,
                 inline=False,
             )
             if detail.get("lecturer"):
-                embed.add_field(name="👨‍🏫 Lecturer", value=detail["lecturer"], inline=True)
+                embed.add_field(name="👨‍🏫 Lecturer", value=clip(detail["lecturer"]), inline=True)
             room = detail.get("room") or event.get("location")
             if room:
                 embed.add_field(name="📍 Room", value=f"`{room}`", inline=True)

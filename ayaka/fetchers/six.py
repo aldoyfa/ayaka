@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import html as html_lib
 import re
 from datetime import date, datetime, timezone
 from typing import Any, List, Optional, Union
 import zoneinfo
+from urllib.parse import urljoin
 import httpx
 from bs4 import BeautifulSoup
 
@@ -162,17 +164,24 @@ class SixFetcher(BaseFetcher):
                             data["notes"] = txt
                     elif "link" in curr_key:
                         for a in elem.find_all("a"):
-                            href = a.get("href", "")
+                            href = urljoin(self.BASE_URL + "/", a.get("href", "").strip())
+                            if not href.lower().startswith(("http://", "https://")):
+                                continue
                             a_txt = a.get_text(" ", strip=True).lower()
-                            if "edunex" in a_txt or "edunex" in href:
+                            if "edunex" in a_txt or "edunex" in href.lower():
                                 data["edunex_url"] = href
-                            elif "teams" in a_txt or "teams" in href:
-                                data["teams_url"] = ("https://six.itb.ac.id" + href) if href.startswith("/") else href
+                            elif "teams" in a_txt or "teams" in href.lower():
+                                data["teams_url"] = href
 
         for line in html.splitlines():
             line = line.strip()
             if "presensi" in line.lower():
-                data["attendance_window"] = re.sub(r"<[^>]+>", "", line).strip()
+                text = html_lib.unescape(re.sub(r"<[^>]+>", " ", line))
+                text = re.sub(r"\s+", " ", text).strip()
+                # Minified pages put everything on one line; keep a bounded window around the keyword.
+                pos = text.lower().find("presensi")
+                start = max(0, pos - 40)
+                data["attendance_window"] = text[start:start + 200].strip()
                 break
 
         return data
