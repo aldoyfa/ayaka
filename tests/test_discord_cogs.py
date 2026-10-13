@@ -162,3 +162,38 @@ async def test_ai_listener_ignores_non_owner(test_bot):
     await cog.on_message(msg)
 
     test_bot.ai_agent.chat.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_blacklist_resolves_real_task_id(test_bot, tmp_path):
+    from unittest.mock import AsyncMock
+    import json
+
+    test_bot.config.task_filters_file = str(tmp_path / "filters.json")
+    test_bot.google_sync = MagicMock()
+    test_bot.db.upsert_task({
+        "id": "edunex:task:61962", "platform": "edunex", "title": "Quiz",
+        "due_date": "2026-12-01T10:00:00+07:00",
+    })
+    cog = AcademicCog(test_bot)
+    interaction = MagicMock()
+    interaction.response.send_message = AsyncMock()
+
+    await cog.slash_blacklist.callback(cog, interaction, "61962", "noise")
+
+    assert test_bot.db.get_task("edunex:task:61962") is None
+    test_bot.google_sync.mark_completed_in_google.assert_called_once_with("edunex:task:61962")
+    saved = json.loads((tmp_path / "filters.json").read_text())
+    assert saved["blacklist"]["task_ids"] == [{"id": 61962, "reason": "noise"}]
+
+
+def test_get_task_is_literal_and_unambiguous(test_bot):
+    for tid in ("edunex:task:61", "edunex:task:71", "omnicampus:assignment:71"):
+        test_bot.db.upsert_task({"id": tid, "platform": "x", "title": tid, "due_date": "2026-12-01"})
+
+    assert test_bot.db.get_task("%") is None          # wildcard is literal
+    assert test_bot.db.get_task("_1") is None
+    assert test_bot.db.get_task("1") is None          # bare digit is not a suffix match
+    assert test_bot.db.get_task("61")["id"] == "edunex:task:61"
+    assert test_bot.db.get_task("71") is None         # ambiguous across platforms
+    assert test_bot.db.get_task("assignment:71")["id"] == "omnicampus:assignment:71"

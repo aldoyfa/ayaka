@@ -209,7 +209,11 @@ class AcademicCog(commands.Cog, name="Academic"):
         raw_id = task_id.strip()
         reason_text = reason.strip() if reason else "Ignored via Discord command"
 
-        num_part = raw_id.split(":", 1)[1] if ":" in raw_id else raw_id
+        existing = self.bot.db.get_task(raw_id)
+        real_id = existing["id"] if existing else raw_id
+
+        # Filters key on the numeric LMS id, i.e. the last ':' segment of "edunex:task:61962"
+        num_part = real_id.rsplit(":", 1)[-1]
         saved_to_filters = False
         if num_part.isdigit():
             saved_to_filters = TaskFilters.add_task_to_blacklist(
@@ -218,15 +222,14 @@ class AcademicCog(commands.Cog, name="Academic"):
                 reason=reason_text,
             )
 
-        deleted = self.bot.db.delete_task(raw_id)
-        if not deleted and not raw_id.startswith("edunex:") and not raw_id.startswith("six:"):
-            deleted = self.bot.db.delete_task(f"edunex:{raw_id}") or self.bot.db.delete_task(f"six:{raw_id}")
-
-        if self.bot.google_sync:
+        # Close the Google task before deleting locally (the lookup needs the row).
+        if self.bot.google_sync and existing:
             try:
-                self.bot.google_sync.mark_completed_in_google(raw_id)
+                self.bot.google_sync.mark_completed_in_google(real_id)
             except Exception as e:
                 logger.error(f"Error updating Google Tasks for blacklisted task: {e}")
+
+        deleted = self.bot.db.delete_task(real_id)
 
         embed = discord.Embed(
             title="🚫 Assignment Blacklisted! 🌸",

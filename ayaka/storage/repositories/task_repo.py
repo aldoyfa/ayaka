@@ -138,16 +138,25 @@ class TaskRepository(BaseRepository):
             return res, is_new
 
     def get_task(self, task_id: str) -> Optional[dict[str, Any]]:
-        """Retrieve task by its unique ID or suffix ID."""
+        """Retrieve task by exact ID, or by unambiguous ':'-delimited ID suffix.
+
+        A suffix like "61962" resolves "edunex:task:61962" only when exactly one
+        task matches; LIKE wildcards in the input are treated literally.
+        """
+        task_id = (task_id or "").strip()
+        if not task_id:
+            return None
         with self.conn_mgr.transaction() as conn:
             row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
-            if not row:
-                row = conn.execute(
-                    "SELECT * FROM tasks WHERE id LIKE ? OR id LIKE ?",
-                    (f"%:{task_id}", f"%{task_id}"),
-                ).fetchone()
             if row:
                 return dict(row)
+            escaped = task_id.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            rows = conn.execute(
+                "SELECT * FROM tasks WHERE id LIKE ? ESCAPE '\\' LIMIT 2",
+                (f"%:{escaped}",),
+            ).fetchall()
+            if len(rows) == 1:
+                return dict(rows[0])
             return None
 
     def list_tasks(
