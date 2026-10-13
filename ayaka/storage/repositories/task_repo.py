@@ -67,7 +67,7 @@ class TaskRepository(BaseRepository):
                     is_newly_completed = True
             else:
                 old_due = row["due_date"]
-                new_due = str(task.get("due_date", old_due))
+                new_due = str(task.get("due_date") or old_due)
                 reset_flags = bool(new_due and old_due and new_due != old_due)
                 due_date_changed = reset_flags
 

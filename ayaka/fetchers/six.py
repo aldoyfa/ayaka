@@ -16,6 +16,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from ayaka.config import Config
+from ayaka.core.time import parse_user_due_date
 from ayaka.fetchers.base import BaseFetcher, SessionExpiredException, run_coro_sync
 
 logger = logging.getLogger("ayaka.fetchers.six")
@@ -112,6 +113,8 @@ class SixFetcher(BaseFetcher):
                 if not course_code or not datetime_str:
                     continue
 
+                # Never invent a deadline: a moving "now" resets reminder flags on every sync.
+                due_dt = parse_user_due_date(datetime_str, self.config.timezone)
                 task_id = f"six:exam:{re.sub(r'[^a-zA-Z0-9]', '', course_code).lower()}"
                 tasks.append({
                     "id": task_id,
@@ -120,7 +123,7 @@ class SixFetcher(BaseFetcher):
                     "course_name": course_name,
                     "title": f"Exam: {course_name} ({course_code})",
                     "description": f"Exam schedule from SIX ITB. Room / Info: {' '.join(cols[3:])}",
-                    "due_date": datetime.now(timezone.utc).isoformat(),  # normalizer
+                    "due_date": due_dt.isoformat() if due_dt else "",
                     "url": f"{self.BASE_URL}/ujian",
                 })
 

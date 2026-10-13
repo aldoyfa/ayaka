@@ -116,3 +116,33 @@ def test_reminder_milestones_evaluation(tmp_path):
     reminders_after = db.get_tasks_needing_reminders(now)
     rem_dict_after = {t["id"]: milestone for t, milestone in reminders_after}
     assert "task_h3" not in rem_dict_after
+
+
+def test_six_exam_due_date_is_stable_across_syncs(tmp_path):
+    import time
+    from ayaka.config import Config
+    from ayaka.fetchers.six import SixFetcher
+
+    db = Database(str(tmp_path / "exam.db"))
+    fetcher = SixFetcher(Config.load())
+    html = (
+        "<table><tr><td>1</td><td>IF4031</td><td>Arsitektur</td><td>A</td>"
+        "<td>10 Oktober 2026 08.00-10.00</td></tr></table>"
+    )
+    first = fetcher._parse_exam_table(html)[0]
+    assert first["due_date"].startswith("2026-10-10T08:00")
+
+    db.upsert_task(first)
+    db.mark_reminder_sent(first["id"], "due")
+    time.sleep(0.01)
+    saved, _ = db.upsert_task(fetcher._parse_exam_table(html)[0])
+
+    assert saved["reminder_due_sent"] == 1
+    assert not saved["_due_date_changed"]
+
+
+def test_missing_due_date_does_not_overwrite_existing(tmp_path):
+    db = Database(str(tmp_path / "keep.db"))
+    db.upsert_task({"id": "x:1", "platform": "six", "title": "T", "due_date": "2026-10-10T08:00:00+07:00"})
+    saved, _ = db.upsert_task({"id": "x:1", "platform": "six", "title": "T", "due_date": ""})
+    assert saved["due_date"] == "2026-10-10T08:00:00+07:00"
