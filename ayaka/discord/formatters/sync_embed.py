@@ -7,6 +7,7 @@ from typing import Any
 import discord
 
 from ayaka.dialogue import format_discord_timestamp
+from ayaka.discord.safe import join_lines_limited
 
 
 def build_sync_embed(platform: str, stats: dict[str, Any], author_icon: str) -> discord.Embed:
@@ -48,7 +49,7 @@ def build_sync_embed(platform: str, stats: dict[str, Any], author_icon: str) -> 
                 comp_lines.append(f"• ...and {len(completed) - 10} more completed tasks")
             embed.add_field(
                 name=f"🎉 Newly Completed Tasks ({len(completed)})",
-                value="\n".join(comp_lines),
+                value=join_lines_limited(comp_lines, more_label="more"),
                 inline=False,
             )
 
@@ -69,7 +70,7 @@ def build_sync_embed(platform: str, stats: dict[str, Any], author_icon: str) -> 
                 add_lines.append(f"• ...and {len(added) - 10} more new tasks")
             embed.add_field(
                 name=f"📋 Newly Discovered Tasks ({len(added)})",
-                value="\n".join(add_lines),
+                value=join_lines_limited(add_lines, more_label="more"),
                 inline=False,
             )
 
@@ -90,7 +91,7 @@ def build_sync_embed(platform: str, stats: dict[str, Any], author_icon: str) -> 
                 upd_lines.append(f"• ...and {len(updated) - 10} more updated tasks")
             embed.add_field(
                 name=f"🔄 Updated Deadlines / Tasks ({len(updated)})",
-                value="\n".join(upd_lines),
+                value=join_lines_limited(upd_lines, more_label="more"),
                 inline=False,
             )
 

@@ -27,6 +27,16 @@ class MeetingRepository(BaseRepository):
             is_new = existing is None
             was_updated = False
 
+            # Keep previously known details when this scrape came back without them
+            # (modal fetch timeout, partial page): INSERT OR REPLACE would otherwise blank them.
+            if existing:
+                for field in ("activity_type", "room", "lecturer", "topic", "notes",
+                              "edunex_url", "teams_url", "attendance_window"):
+                    if not meeting.get(field) and existing[field]:
+                        meeting[field] = existing[field]
+                        if field in ("topic", "room", "notes"):
+                            meeting[f"_kept_{field}"] = True
+
             new_topic = meeting.get("topic", "")
             new_room = meeting.get("room", "")
             new_notes = meeting.get("notes", "")

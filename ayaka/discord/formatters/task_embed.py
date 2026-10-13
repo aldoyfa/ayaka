@@ -7,6 +7,7 @@ from typing import Any, TYPE_CHECKING
 import discord
 
 from ayaka.dialogue import format_discord_timestamp, generate_progress_bar
+from ayaka.discord.safe import clip, defang_code_block
 
 if TYPE_CHECKING:
     from ayaka.dialogue import DialogueManager
@@ -47,9 +48,9 @@ def build_reminder_embed(
     )
 
     # Structured course and platform info
-    embed.add_field(name="📚 Course", value=f"**{course_name}**", inline=True)
+    embed.add_field(name="📚 Course", value=clip(f"**{course_name}**"), inline=True)
     embed.add_field(name="🌐 Platform", value=f"`{task.get('platform', '').upper()}`", inline=True)
-    embed.add_field(name="📌 Assignment", value=f"**{task_title}**", inline=False)
+    embed.add_field(name="📌 Assignment", value=clip(f"**{task_title}**"), inline=False)
 
     # Discord timestamp and visual progress bar
     now_utc = datetime.now(timezone.utc)
@@ -71,7 +72,7 @@ def build_reminder_embed(
         embed.add_field(name="⏰ Deadline", value=task.get("due_date", "-"), inline=False)
 
     if task.get("description"):
-        desc_snip = task["description"][:280] + ("..." if len(task["description"]) > 280 else "")
+        desc_snip = defang_code_block(task["description"][:280]) + ("..." if len(task["description"]) > 280 else "")
         embed.add_field(name="📝 Notes", value=f"```{desc_snip}```", inline=False)
 
     embed.set_footer(
@@ -120,8 +121,8 @@ def build_upcoming_embed(
         course = t.get("course_name") or t.get("course_id") or "General"
         rel_ts, full_ts = format_discord_timestamp(due_dt)
         embed.add_field(
-            name=f"📌 [{t['platform'].upper()}] {t['title']}",
-            value=f"• **Course:** {course}\n• **Deadline:** {rel_ts} ({full_ts})\n• **ID:** `{t['id']}`",
+            name=clip(f"📌 [{t['platform'].upper()}] {t['title']}", 256),
+            value=clip(f"• **Course:** {course}\n• **Deadline:** {rel_ts} ({full_ts})\n• **ID:** `{t['id']}`"),
             inline=False,
         )
 

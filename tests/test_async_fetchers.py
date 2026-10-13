@@ -239,3 +239,28 @@ def test_missing_student_id_is_not_defaulted():
     config = Config.load()
     config.academic.six_student_id = ""
     assert SixFetcher(config).student_id == ""
+
+
+@pytest.mark.anyio
+async def test_six_meetings_without_pertemuan_id_get_distinct_ids():
+    config = Config.load()
+    config.academic.six_cookie = "c"
+    config.academic.six_student_id = "1"
+    config.academic.six_semester_code = "2026-1"
+    fetcher = SixFetcher(config)
+
+    def cell(day, start):
+        return (f'<td><div>{day} Oktober 2026</div><a class="linkpertemuan" data-url="/weird/path" '
+                f'data-kuliah="IF5152 X">(Kuliah R) {start}-10:00</a></td>')
+
+    html = f'<table class="table-bordered"><tr><th>h</th></tr><tr>{cell(20, "08:00")}{cell(21, "08:00")}</tr></table>'
+
+    async def mock_get(url, **kw):
+        r = MagicMock(); r.status_code = 200; r.text = html; r.url = url
+        return r
+
+    with patch("httpx.AsyncClient.get", side_effect=mock_get):
+        meetings = await fetcher.fetch_lecture_meetings_async(fetch_modals=False, future_only=False)
+
+    ids = [m["id"] for m in meetings]
+    assert len(ids) == 2 and len(set(ids)) == 2

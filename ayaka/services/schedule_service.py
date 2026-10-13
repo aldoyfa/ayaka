@@ -104,6 +104,7 @@ class ScheduleService:
                     "start_dt": start_dt,
                     "end_dt": end_dt,
                     "html_link": ev.get("htmlLink", ""),
+                    "all_day": "dateTime" not in start_raw,
                 }
                 self._enrich_event(parsed_event)
                 parsed_events.append(parsed_event)
@@ -217,6 +218,7 @@ class ScheduleService:
                     "start_dt": start_dt,
                     "end_dt": end_dt,
                     "html_link": ev.get("htmlLink", ""),
+                    "all_day": "dateTime" not in start_raw,
                 }
                 self._enrich_event(parsed_event)
                 parsed_events.append(parsed_event)

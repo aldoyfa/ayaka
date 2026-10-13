@@ -307,6 +307,9 @@ class SixFetcher(BaseFetcher):
 
                             pid_match = re.search(r"/pertemuan/([0-9]+)/", url)
                             pid = pid_match.group(1) if pid_match else ""
+                            if not pid:
+                                # Stable fallback so meetings without a numeric id don't overwrite each other
+                                pid = "x" + re.sub(r"[^a-z0-9]", "", f"{date_str}{course_code}{st}".lower())
 
                             clean_durl = url.split("?returnTo=")[0]
                             if clean_durl.startswith("/"):

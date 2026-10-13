@@ -317,7 +317,8 @@ async def schedule_reminder_loop(
                 last_fetch_time = now_local
 
             # 1. Daily morning briefing
-            if morning_enabled and now_local.hour >= morning_hour:
+            # Only within a window after the configured hour so a late restart doesn't send "good morning" at night
+            if morning_enabled and morning_hour <= now_local.hour < morning_hour + 6:
                 morning_rem_id = f"morning:{today_str}"
                 if not await asyncio.to_thread(db.is_schedule_reminder_sent, morning_rem_id):
                     logger.info(f"Triggering morning lecture briefing for {today_str} at hour {now_local.hour} ({len(cached_events)} classes)")
@@ -333,6 +334,8 @@ async def schedule_reminder_loop(
 
             # 2. Evaluate class-specific reminders for today's classes
             for ev in cached_events:
+                if ev.get("all_day"):
+                    continue  # holidays / all-day notes are not classes
                 ev_id = ev["id"]
                 start_dt = ev["start_dt"]
                 end_dt = ev["end_dt"]

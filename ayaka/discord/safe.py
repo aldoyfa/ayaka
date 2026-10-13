@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Optional
+import re
+from typing import Iterable, Optional
 from urllib.parse import urlsplit
 
 MAX_LINK_URL = 512      # Discord link-button limit
@@ -34,3 +35,29 @@ def clip(text: object, limit: int = MAX_FIELD_VALUE) -> str:
 def defang_code_block(text: str) -> str:
     """Prevent untrusted text from closing a surrounding ``` block."""
     return text.replace("```", "'''")
+
+
+_MD_SPECIAL = re.compile(r"([\\*_`~|>\[\]()])")
+
+
+def escape_text(text: object, limit: int = MAX_FIELD_VALUE) -> str:
+    """Neutralize Discord markdown/links/mentions in untrusted text (email subjects, senders)."""
+    value = _MD_SPECIAL.sub(r"\\\1", str(text))
+    value = value.replace("@", "@\u200b")
+    return clip(value, limit)
+
+
+def join_lines_limited(lines: Iterable[str], limit: int = MAX_FIELD_VALUE, more_label: str = "more") -> str:
+    """Join lines for an embed field without exceeding ``limit``; summarize what was cut."""
+    lines = [clip(line, 200) for line in lines]
+    out: list[str] = []
+    used = 0
+    for i, line in enumerate(lines):
+        remaining = len(lines) - i
+        reserve = len(f"\n• ...and {remaining} {more_label}") if remaining > 1 else 0
+        if used + len(line) + 1 + reserve > limit and out:
+            out.append(f"• ...and {remaining} {more_label}")
+            break
+        out.append(line)
+        used += len(line) + 1
+    return "\n".join(out)

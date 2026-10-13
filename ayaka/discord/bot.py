@@ -17,7 +17,7 @@ from discord.ext import commands
 from ayaka.config import Config
 from ayaka.dialogue import DialogueManager, format_discord_timestamp
 from ayaka.discord.cogs import AcademicCog, AdminCog, AICog, ScheduleCog
-from ayaka.discord.safe import clip, defang_code_block
+from ayaka.discord.safe import clip, defang_code_block, escape_text
 from ayaka.discord.constants import DEFAULT_ICON_PNG, MAIL_ICON_PNG
 from ayaka.discord.formatters import (
     build_reminder_embed,
@@ -196,8 +196,9 @@ class AyakaBot(commands.Bot):
             if not user:
                 return False
 
-            sender = email_data.get("sender", "University Academic Office")
-            subject = email_data.get("subject", "(No Subject)")
+            # Email headers are attacker-controlled: neutralize markdown links/mentions before embedding
+            sender = escape_text(email_data.get("sender", "University Academic Office"), 200)
+            subject = escape_text(email_data.get("subject", "(No Subject)"), 300)
 
             dialogue = self.dialogue_mgr.get_dialogue("gmail_alert", sender=sender)
             title = self.dialogue_mgr.get_title("gmail_alert", default="Urgent Correspondence")
@@ -214,7 +215,7 @@ class AyakaBot(commands.Bot):
                 icon_url=MAIL_ICON_PNG,
             )
             embed.add_field(name="📬 Subject", value=f"**{subject}**", inline=False)
-            embed.add_field(name="👤 Sender", value=f"`{sender}`", inline=True)
+            embed.add_field(name="👤 Sender", value=clip(sender, 200), inline=True)
             embed.add_field(name="📅 Received", value=email_data.get("date", "-"), inline=True)
 
             snippet = email_data.get("snippet", "")

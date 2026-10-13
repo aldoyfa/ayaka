@@ -341,3 +341,25 @@ async def test_send_class_advance_reminder(tmp_path):
     assert "15 minutes" in embed.description
 
 
+
+
+def test_meeting_upsert_keeps_known_details_when_modal_fetch_fails(tmp_path):
+    db = Database(str(tmp_path / "keep.db"))
+    full = {
+        "id": "six:meeting:1", "meeting_date": "2026-10-20", "course_code": "IF5152",
+        "course_name": "Visi", "start_time": "09:00", "end_time": "11:00",
+        "activity_type": "Kuliah", "room": "R1", "lecturer": "Dr. Jane", "topic": "Detection",
+        "notes": "", "edunex_url": "https://edunex.itb.ac.id/c/1", "teams_url": "",
+        "attendance_window": "Presensi 09:00-11:00", "detail_url": "/kelas/pertemuan/1/mhs/1",
+    }
+    db.upsert_lecture_meeting(dict(full))
+
+    bare = dict(full, activity_type="", lecturer="", topic="", edunex_url="", attendance_window="")
+    saved, _, _ = db.upsert_lecture_meeting(bare)
+    stored = db.get_lecture_meeting("2026-10-20", "IF5152", "09:00")
+
+    assert stored["lecturer"] == "Dr. Jane"
+    assert stored["topic"] == "Detection"
+    assert stored["edunex_url"] == "https://edunex.itb.ac.id/c/1"
+    assert stored["attendance_window"] == "Presensi 09:00-11:00"
+    assert saved["lecturer"] == "Dr. Jane"

@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from typing import Any, Optional, TYPE_CHECKING
 import discord
 
+from ayaka.discord.safe import clip
+
 from ayaka.dialogue import format_discord_timestamp
 
 if TYPE_CHECKING:
@@ -69,8 +71,8 @@ class TaskPaginationView(discord.ui.View):
 
             status_icon = "✅" if t.get("is_completed") else "⏳"
             embed.add_field(
-                name=f"{status_icon} [{t['platform'].upper()}] {t['title']}",
-                value=f"• **Course:** {course}\n• **Due:** {due_display}\n• **ID:** `{t['id']}`",
+                name=clip(f"{status_icon} [{t['platform'].upper()}] {t['title']}", 256),
+                value=clip(f"• **Course:** {course}\n• **Due:** {due_display}\n• **ID:** `{t['id']}`"),
                 inline=False,
             )
 
