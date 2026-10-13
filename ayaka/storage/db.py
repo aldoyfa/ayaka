@@ -161,6 +161,17 @@ class Database:
                 """
             )
 
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS task_reminders_sent (
+                    task_id TEXT NOT NULL,
+                    milestone TEXT NOT NULL,
+                    sent_at TEXT NOT NULL,
+                    PRIMARY KEY (task_id, milestone)
+                )
+                """
+            )
+
             # Performance Indexes
             conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_due_completed ON tasks (due_date, is_completed);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_platform ON tasks (platform);")

@@ -12,6 +12,16 @@ from typing import Any, List, Optional, Tuple
 from ayaka.storage.repositories.base import BaseRepository
 
 
+# Milestones with a dedicated tasks column; any other config key uses task_reminders_sent.
+LEGACY_REMINDER_COLUMNS = {
+    "h3": "reminder_h3_sent",
+    "h1": "reminder_h1_sent",
+    "j6": "reminder_j6_sent",
+    "j1": "reminder_j1_sent",
+    "due": "reminder_due_sent",
+}
+
+
 class TaskRepository(BaseRepository):
     """Repository handling all academic task queries and persistence."""
 
@@ -106,6 +116,7 @@ class TaskRepository(BaseRepository):
                 ]
 
                 if reset_flags:
+                    conn.execute("DELETE FROM task_reminders_sent WHERE task_id = ?", (task_id,))
                     update_sql += """,
                         reminder_h3_sent = 0,
                         reminder_h1_sent = 0,
@@ -201,19 +212,19 @@ class TaskRepository(BaseRepository):
 
     def mark_reminder_sent(self, task_id: str, milestone: str) -> None:
         """Mark specific reminder flag (h3, h1, j6, j1, due)."""
-        valid_milestones = {
-            "h3": "reminder_h3_sent",
-            "h1": "reminder_h1_sent",
-            "j6": "reminder_j6_sent",
-            "j1": "reminder_j1_sent",
-            "due": "reminder_due_sent",
-        }
-        col = valid_milestones.get(milestone.lower())
-        if not col:
-            raise ValueError(f"Unknown milestone: {milestone}")
+        key = milestone.strip().lower()
+        if not key:
+            raise ValueError("Milestone key must not be empty")
 
+        col = LEGACY_REMINDER_COLUMNS.get(key)
         with self.conn_mgr.transaction() as conn:
-            conn.execute(f"UPDATE tasks SET {col} = 1 WHERE id = ?", (task_id,))
+            if col:
+                conn.execute(f"UPDATE tasks SET {col} = 1 WHERE id = ?", (task_id,))
+            else:
+                conn.execute(
+                    "INSERT OR IGNORE INTO task_reminders_sent (task_id, milestone, sent_at) VALUES (?, ?, ?)",
+                    (task_id, key, datetime.now(timezone.utc).isoformat()),
+                )
 
     def get_tasks_needing_reminders(
         self, now_dt: datetime, milestones: Optional[list[Any]] = None
@@ -249,6 +260,11 @@ class TaskRepository(BaseRepository):
         parsed_ms.sort(key=lambda x: x[1], reverse=True)
 
         pending = self.list_tasks(include_completed=False)
+        with self.conn_mgr.transaction() as conn:
+            custom_sent = {
+                (r["task_id"], r["milestone"])
+                for r in conn.execute("SELECT task_id, milestone FROM task_reminders_sent")
+            }
         due_alerts: list[Tuple[dict[str, Any], str]] = []
 
         for task in pending:
@@ -263,8 +279,11 @@ class TaskRepository(BaseRepository):
             hours_remaining = (due_dt - now_dt).total_seconds() / 3600.0
 
             for i, (m_key, upper_hours) in enumerate(parsed_ms):
-                flag_col = f"reminder_{m_key}_sent"
-                if task.get(flag_col, 0):
+                legacy_col = LEGACY_REMINDER_COLUMNS.get(m_key)
+                if legacy_col:
+                    if task.get(legacy_col, 0):
+                        continue
+                elif (task["id"], m_key) in custom_sent:
                     continue
 
                 if upper_hours <= 0:

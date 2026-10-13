@@ -146,3 +146,28 @@ def test_missing_due_date_does_not_overwrite_existing(tmp_path):
     db.upsert_task({"id": "x:1", "platform": "six", "title": "T", "due_date": "2026-10-10T08:00:00+07:00"})
     saved, _ = db.upsert_task({"id": "x:1", "platform": "six", "title": "T", "due_date": ""})
     assert saved["due_date"] == "2026-10-10T08:00:00+07:00"
+
+
+def test_custom_milestone_key_is_tracked_and_fires_once(tmp_path):
+    from ayaka.config import TaskMilestoneConfig
+
+    db = Database(str(tmp_path / "ms.db"))
+    now = datetime.now(timezone.utc)
+    db.upsert_task({
+        "id": "edunex:task:9", "platform": "edunex", "title": "Soon",
+        "due_date": (now + timedelta(hours=100)).isoformat(),
+    })
+    ms = [TaskMilestoneConfig(key="d5", hours=120.0)]
+
+    hits = db.get_tasks_needing_reminders(now, ms)
+    assert [(t["id"], m) for t, m in hits] == [("edunex:task:9", "d5")]
+
+    db.mark_reminder_sent("edunex:task:9", "d5")
+    assert db.get_tasks_needing_reminders(now, ms) == []
+
+    # Changing the deadline re-arms custom milestones too
+    db.upsert_task({
+        "id": "edunex:task:9", "platform": "edunex", "title": "Soon",
+        "due_date": (now + timedelta(hours=101)).isoformat(),
+    })
+    assert len(db.get_tasks_needing_reminders(now, ms)) == 1

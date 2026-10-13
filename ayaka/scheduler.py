@@ -174,9 +174,12 @@ async def reminder_loop(
             needing = await asyncio.to_thread(db.get_tasks_needing_reminders, now_utc, milestones)
             for task, milestone in needing:
                 logger.info(f"Triggering reminder [{milestone}] for task {task['id']} - {task['title']}")
-                sent = await bot.send_task_reminder(task, milestone)
-                if sent:
-                    await asyncio.to_thread(db.mark_reminder_sent, task["id"], milestone)
+                try:
+                    sent = await bot.send_task_reminder(task, milestone)
+                    if sent:
+                        await asyncio.to_thread(db.mark_reminder_sent, task["id"], milestone)
+                except Exception as task_err:
+                    logger.error(f"Reminder [{milestone}] failed for task {task['id']}: {task_err}")
         except Exception as e:
             logger.error(f"Error in reminder loop: {e}")
 
