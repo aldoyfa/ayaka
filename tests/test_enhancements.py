@@ -201,7 +201,8 @@ def test_attendance_action_view():
     # Should have 3 children: Open SIX button, Open Edunex button, Checked In button
     assert len(view.children) == 3
 
-    labels = [getattr(c, "label", "") for c in view.children]
+    # Persistent DynamicItems wrap the real button in .item
+    labels = [getattr(getattr(c, "item", c), "label", "") for c in view.children]
     assert any("SIX" in l for l in labels)
     assert any("Edunex" in l for l in labels)
     assert any("Checked In" in l for l in labels)

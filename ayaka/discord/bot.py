@@ -27,7 +27,9 @@ from ayaka.discord.formatters import (
 )
 from ayaka.discord.views import (
     AttendanceActionView,
+    CheckInButton,
     ClassStartActionView,
+    CompleteTaskButton,
     TaskActionView,
     TaskPaginationView,
 )
@@ -78,6 +80,9 @@ class AyakaBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         """Initialize extensions, error handlers, and sync slash commands."""
+        # Persistent buttons: reminder DMs stay clickable across restarts
+        self.add_dynamic_items(CompleteTaskButton, CheckInButton)
+
         # Load Cogs
         await self.add_cog(AcademicCog(self))
         await self.add_cog(ScheduleCog(self))

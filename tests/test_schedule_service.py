@@ -198,7 +198,7 @@ def test_action_views():
         teams_url="https://teams.microsoft.com/meet/1",
     )
     # Check buttons
-    labels = [b.label for b in att_view.children if hasattr(b, "label")]
+    labels = [getattr(b, "item", b).label for b in att_view.children]
     assert "Open SIX" in labels
     assert "Open Edunex" in labels
     assert "MS Teams" in labels

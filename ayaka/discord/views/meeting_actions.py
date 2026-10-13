@@ -42,12 +42,44 @@ class AttendanceActionView(discord.ui.View):
                 )
             )
 
-    @discord.ui.button(label="Checked In", style=discord.ButtonStyle.success, emoji="✅")
-    async def confirm_check_in(self, interaction: discord.Interaction, button: discord.ui.Button):
-        button.disabled = True
-        button.label = "Checked In! 🌸"
-        button.style = discord.ButtonStyle.secondary
-        await interaction.response.edit_message(view=self)
+        self.add_item(CheckInButton())
+
+
+class CheckInButton(
+    discord.ui.DynamicItem[discord.ui.Button],
+    template=r"ayaka:checkin",
+):
+    """Persistent "Checked In" acknowledgement; survives bot restarts."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            discord.ui.Button(
+                label="Checked In",
+                style=discord.ButtonStyle.success,
+                emoji="✅",
+                custom_id="ayaka:checkin",
+            )
+        )
+
+    @classmethod
+    async def from_custom_id(cls, interaction, item, match) -> "CheckInButton":
+        return cls()
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        is_owner = getattr(interaction.client, "is_owner_id", None)
+        if is_owner is not None and not is_owner(interaction.user.id):
+            await interaction.response.send_message("Only Master can do that. (｡•́︿•̀｡)", ephemeral=True)
+            return False
+        return True
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        view = discord.ui.View.from_message(interaction.message, timeout=None)
+        for child in view.children:
+            if getattr(child, "custom_id", None) == "ayaka:checkin":
+                child.disabled = True
+                child.label = "Checked In! 🌸"
+                child.style = discord.ButtonStyle.secondary
+        await interaction.response.edit_message(view=view)
         await interaction.followup.send(
             ">>> *\"Splendid, Master! Your attendance has been marked! Keep up the brilliant focus! (≧◡≦) 💖\"*",
             ephemeral=True,

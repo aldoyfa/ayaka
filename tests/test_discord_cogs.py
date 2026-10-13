@@ -218,3 +218,49 @@ async def test_session_command_rejects_multiline_credential(test_bot):
     upd.assert_not_called()
     interaction.response.defer.assert_not_awaited()
     assert test_bot.config.academic.omnicampus_token == before
+
+
+def test_reminder_buttons_are_persistent_dynamic_items(test_bot):
+    from ayaka.discord.views import CheckInButton, CompleteTaskButton
+
+    view = TaskActionView({"id": "edunex:task:61962", "title": "Q"}, test_bot.db, test_bot.dialogue_mgr)
+    btn = next(c for c in view.children if isinstance(c, CompleteTaskButton))
+    assert btn.item.custom_id == "ayaka:complete:edunex:task:61962"
+    assert view.timeout is None
+
+    # custom_id round-trips so an old DM resolves the right task after restart
+    match = CompleteTaskButton.__discord_ui_compiled_template__.fullmatch(btn.item.custom_id)
+    assert match["task_id"] == "edunex:task:61962"
+    assert CheckInButton.__discord_ui_compiled_template__.fullmatch("ayaka:checkin")
+
+
+@pytest.mark.anyio
+async def test_complete_button_callback_after_restart(test_bot):
+    from unittest.mock import AsyncMock, patch
+    from ayaka.discord.views import CompleteTaskButton
+
+    test_bot.config.discord.user_id = 42
+    test_bot.google_sync = MagicMock()
+    test_bot.db.upsert_task({"id": "edunex:task:5", "platform": "edunex", "title": "HW",
+                             "due_date": "2026-12-01T10:00:00+07:00"})
+
+    interaction = MagicMock()
+    interaction.client = test_bot
+    interaction.user.id = 42
+    interaction.response.edit_message = AsyncMock()
+    interaction.followup.send = AsyncMock()
+
+    button = CompleteTaskButton("edunex:task:5")
+    assert await button.interaction_check(interaction) is True
+    with patch("discord.ui.View.from_message", return_value=MagicMock(children=[])):
+        await button.callback(interaction)
+
+    assert test_bot.db.get_task("edunex:task:5")["is_completed"] == 1
+    test_bot.google_sync.mark_completed_in_google.assert_called_once_with("edunex:task:5")
+    interaction.response.edit_message.assert_awaited_once()
+
+    stranger = MagicMock()
+    stranger.client = test_bot
+    stranger.user.id = 7
+    stranger.response.send_message = AsyncMock()
+    assert await button.interaction_check(stranger) is False
