@@ -193,6 +193,11 @@ class AIConfig:
 
 
 @dataclass
+class PersonalityConfig:
+    active: str = "deredere"
+
+
+@dataclass
 class Config:
     discord: DiscordConfig
     google: GoogleConfig
@@ -201,6 +206,7 @@ class Config:
     scheduler: SchedulerConfig
     ai: AIConfig
     reminders: RemindersConfig = field(default_factory=RemindersConfig)
+    personality: PersonalityConfig = field(default_factory=PersonalityConfig)
     database_path: str = "data/ayaka_state.db"
     dialogue_file: str = "dialogues.json"
     task_filters_file: str = "task_filters.json"
@@ -231,6 +237,7 @@ class Config:
         sched_data = c_data.get("scheduler", {})
         plat_data = c_data.get("platforms", {})
         google_data = c_data.get("google", {})
+        person_data = c_data.get("personality", {})
 
         # 2. Load private credentials from .env
         env_file = base_dir / ".env"
@@ -366,6 +373,13 @@ class Config:
             lectures=lec_rem_cfg,
         )
 
+        if isinstance(person_data, dict):
+            raw_active = person_data.get("active", "deredere")
+        else:
+            raw_active = str(person_data)
+        active_personality = os.getenv("ACTIVE_PERSONALITY", raw_active).strip().lower() or "deredere"
+        personality_cfg = PersonalityConfig(active=active_personality)
+
         return cls(
             discord=DiscordConfig(
                 bot_token=os.getenv("DISCORD_BOT_TOKEN", "").strip(),
@@ -412,6 +426,7 @@ class Config:
                 base_url=os.getenv("AI_BASE_URL", "").strip(),
             ),
             reminders=reminders_cfg,
+            personality=personality_cfg,
             database_path=db_path,
             dialogue_file=dialogue_file,
             task_filters_file=task_filters_file,

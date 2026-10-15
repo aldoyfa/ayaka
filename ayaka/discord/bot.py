@@ -63,12 +63,14 @@ class AyakaBot(commands.Bot):
         self.db = db
         self.google_sync = google_sync
         self.schedule_service = schedule_service
-        self.dialogue_mgr = DialogueManager(config.dialogue_file)
+        active_persona = getattr(getattr(config, "personality", None), "active", "deredere")
+        self.dialogue_mgr = DialogueManager(config.dialogue_file, active_personality=active_persona)
         self.ai_agent = AIAgent(
             config=config,
             db=db,
             google_sync=google_sync,
             schedule_service=schedule_service,
+            dialogue_mgr=self.dialogue_mgr,
         )
         self.start_time = datetime.now(timezone.utc)
 

@@ -11,6 +11,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 import discord
 from discord import app_commands
@@ -117,6 +118,8 @@ class AdminCog(commands.Cog, name="Admin"):
             inline=True,
         )
         embed.add_field(name="📚 Active Tasks", value=f"**{pending}** pending / **{completed}** finished", inline=True)
+        pers_meta = self.bot.dialogue_mgr.get_personality_meta()
+        embed.add_field(name="🎭 Personality", value=pers_meta["display_name"], inline=True)
         embed.add_field(name="⏰ Timezone", value=self.bot.config.timezone, inline=True)
         embed.set_footer(text="Ayaka Academic Assistant • System Status ✨")
         await interaction.response.send_message(embed=embed)
@@ -222,6 +225,92 @@ class AdminCog(commands.Cog, name="Admin"):
         embed.set_footer(text="Your secret credential remains private and secure.")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
+    @app_commands.command(name="personality", description="View or switch Ayaka's anime personality archetype")
+    @app_commands.describe(
+        archetype="Select personality archetype (leave blank to view current personality)"
+    )
+    @app_commands.choices(archetype=[
+        app_commands.Choice(name="Deredere (Energetic, Cheerful & Loving)", value="deredere"),
+        app_commands.Choice(name="Tsundere (Prickly & Feisty on the outside, deeply caring inside)", value="tsundere"),
+        app_commands.Choice(name="Kuudere (Cool, Calm, Analytical & Stoic loyalty)", value="kuudere"),
+        app_commands.Choice(name="Yandere (Devoted, Possessive & Chillingly affectionate)", value="yandere"),
+    ])
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.allowed_installs(guilds=True, users=True)
+    async def slash_personality(
+        self,
+        interaction: discord.Interaction,
+        archetype: Optional[app_commands.Choice[str]] = None,
+    ) -> None:
+        if archetype is None:
+            current_meta = self.bot.dialogue_mgr.get_personality_meta()
+            curr_key = current_meta["key"]
+            embed = discord.Embed(
+                title=f"🎭 Ayaka Personality Profile: {current_meta['display_name']}",
+                description=f">>> *\"{current_meta.get('description', '')}\"*",
+                color=0x5DADE2 if curr_key == "deredere" else 0xE74C3C if curr_key == "tsundere" else 0x34495E if curr_key == "kuudere" else 0x884EA0,
+                timestamp=datetime.now(timezone.utc),
+            )
+            if current_meta.get("avatar_url"):
+                embed.set_thumbnail(url=current_meta["avatar_url"])
+
+            all_archetypes = self.bot.dialogue_mgr.list_personalities()
+            archetypes_desc = []
+            for p in all_archetypes:
+                meta = self.bot.dialogue_mgr.get_personality_meta(p)
+                marker = "👉 **[ACTIVE]** " if p == curr_key else "• "
+                archetypes_desc.append(f"{marker}**{meta['display_name']}** — {meta.get('description', '')}")
+
+            embed.add_field(name="Available Archetypes", value="\n".join(archetypes_desc), inline=False)
+            embed.set_footer(text="Switch personality anytime using /personality <archetype>")
+            await interaction.response.send_message(embed=embed)
+            return
+
+        target_key = archetype.value.strip().lower()
+        self.bot.dialogue_mgr.set_personality(target_key)
+        if hasattr(self.bot.config, "personality"):
+            self.bot.config.personality.active = target_key
+
+        try:
+            cfg_path = Path(self.bot.config.dialogue_file).resolve().parent / "config.json"
+            if cfg_path.is_file():
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    c_data = json.load(f)
+                if not isinstance(c_data.get("personality"), dict):
+                    c_data["personality"] = {}
+                c_data["personality"]["active"] = target_key
+                with open(cfg_path, "w", encoding="utf-8") as f:
+                    json.dump(c_data, f, indent=2, ensure_ascii=False)
+                    f.write("\n")
+        except Exception as e:
+            logger.warning(f"Could not persist personality to config.json: {e}")
+
+        meta = self.bot.dialogue_mgr.get_personality_meta(target_key)
+
+        if target_key == "tsundere":
+            voice_line = "H-Hmph! Don't get the wrong idea, okay?! I only switched to this because you told me to, baka! Don't expect me to be all sweet and soft on your assignments! 💢"
+            color = 0xE74C3C
+        elif target_key == "kuudere":
+            voice_line = "Recalibration complete. Persona switched to Kuudere. Efficiency parameters and stoic academic monitoring active. ❄️"
+            color = 0x34495E
+        elif target_key == "yandere":
+            voice_line = "Aha... ahahaha! Now you're all mine, Master... I will watch over your tasks, your screen, and every single second of your life. Forever... 🖤🩸"
+            color = 0x884EA0
+        else:
+            voice_line = "Yaaay! Deredere Ayaka is here and super pumped to cheer you on with all my love and energy! Let's do our absolute best together, Master! 🌸✨"
+            color = 0x5DADE2
+
+        embed = discord.Embed(
+            title=f"✨ Switched Personality to {meta['display_name']}!",
+            description=f">>> *\"{voice_line}\"*",
+            color=color,
+            timestamp=datetime.now(timezone.utc),
+        )
+        if meta.get("avatar_url"):
+            embed.set_thumbnail(url=meta["avatar_url"])
+        embed.set_footer(text="Task reminders & /chat will now reflect this personality!")
+        await interaction.response.send_message(embed=embed)
+
     @app_commands.command(name="help", description="Show all available Ayaka slash commands and features")
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.allowed_installs(guilds=True, users=True)
@@ -241,6 +330,7 @@ class AdminCog(commands.Cog, name="Admin"):
         embed.add_field(name="📅 `/schedule [period]`", value="View lecture schedule (`today`, `tomorrow`, or `week`).", inline=False)
         embed.add_field(name="🔄 `/sync [platform]`", value="Trigger an immediate sync across all campus LMS platforms.", inline=False)
         embed.add_field(name="📊 `/status`", value="Check bot uptime, LMS sync timestamps, and session health.", inline=False)
+        embed.add_field(name="🎭 `/personality [archetype]`", value="View or switch Ayaka's anime personality (Deredere, Tsundere, Kuudere, Yandere).", inline=False)
         embed.add_field(name="💬 `/chat <message>`", value="Talk with Ayaka or ask her to create/finish tasks with AI natural language.", inline=False)
         embed.add_field(name="💡 Milestone Reminders", value="Proactive reminders arrive at **H-3, H-1, J-6, J-1, and Due** directly in your DMs!", inline=False)
         embed.add_field(name="🔔 Automated Class Reminders", value="05:00 AM daily briefing, class start alerts, and attendance alerts 10 minutes before class ends ✨", inline=False)
@@ -274,8 +364,10 @@ class AdminCog(commands.Cog, name="Admin"):
                 return "🟢 Healthy"
             return "🟢 Configured"
 
+        pers_meta = self.bot.dialogue_mgr.get_personality_meta()
         await ctx.send(
             f"🌸 **Ayaka Status:** Uptime: `{uptime_str}` • Tasks: {pending} pending / {completed} finished\n"
+            f"🎭 **Personality:** {pers_meta['display_name']} | "
             f"🏫 **Edunex:** {_quick_st('edunex', self.bot.config.academic.has_edunex)} | "
             f"🎓 **SIX:** {_quick_st('six', self.bot.config.academic.has_six)} | "
             f"🌐 **Omnicampus:** {_quick_st('omnicampus', self.bot.config.academic.has_omnicampus)} | "
@@ -334,6 +426,56 @@ class AdminCog(commands.Cog, name="Admin"):
             await ctx.author.send(reply)
         except Exception:
             await ctx.send(reply)
+
+    @commands.command(name="personality")
+    async def cmd_personality(self, ctx: commands.Context, archetype: Optional[str] = None) -> None:
+        if not archetype:
+            current_meta = self.bot.dialogue_mgr.get_personality_meta()
+            all_archetypes = self.bot.dialogue_mgr.list_personalities()
+            archetype_list_str = ", ".join(f"`{p}`" for p in all_archetypes)
+            await ctx.send(
+                f"🎭 **Active Personality:** {current_meta['display_name']}\n"
+                f"_{current_meta.get('description', '')}_\n\n"
+                f"**Available Archetypes:** {archetype_list_str}\n"
+                f"👉 Use `!personality <name>` to switch!"
+            )
+            return
+
+        target_key = archetype.strip().lower()
+        valid_keys = self.bot.dialogue_mgr.list_personalities()
+        if target_key not in valid_keys:
+            await ctx.send(f"⚠️ Unknown archetype `{target_key}`. Available options: {', '.join(f'`{k}`' for k in valid_keys)}")
+            return
+
+        self.bot.dialogue_mgr.set_personality(target_key)
+        if hasattr(self.bot.config, "personality"):
+            self.bot.config.personality.active = target_key
+
+        try:
+            cfg_path = Path(self.bot.config.dialogue_file).resolve().parent / "config.json"
+            if cfg_path.is_file():
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    c_data = json.load(f)
+                if not isinstance(c_data.get("personality"), dict):
+                    c_data["personality"] = {}
+                c_data["personality"]["active"] = target_key
+                with open(cfg_path, "w", encoding="utf-8") as f:
+                    json.dump(c_data, f, indent=2, ensure_ascii=False)
+                    f.write("\n")
+        except Exception as e:
+            logger.warning(f"Could not persist personality to config.json: {e}")
+
+        meta = self.bot.dialogue_mgr.get_personality_meta(target_key)
+        if target_key == "tsundere":
+            reply = f"😤 **{meta['display_name']}:** H-Hmph! Don't get the wrong idea! I only switched because you asked, baka! 💢"
+        elif target_key == "kuudere":
+            reply = f"❄️ **{meta['display_name']}:** Persona updated to Kuudere. Efficiency parameters applied."
+        elif target_key == "yandere":
+            reply = f"🖤 **{meta['display_name']}:** Hehehe... You're all mine now, Master. I will never let you go... 🩸"
+        else:
+            reply = f"🌸 **{meta['display_name']}:** Yaaay! Deredere Ayaka is here and super excited to support you, Master! ✨"
+
+        await ctx.send(reply)
 
 
 async def setup(bot: "AyakaBot") -> None:

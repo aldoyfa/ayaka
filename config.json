@@ -5,6 +5,9 @@
     "dialogue_file": "dialogues.json",
     "task_filters_file": "task_filters.json"
   },
+  "personality": {
+    "active": "deredere"
+  },
   "gmail": {
     "monitor_domains": [
       "itb.ac.id",

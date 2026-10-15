@@ -67,10 +67,15 @@ class DialogueManager:
             "title": "⚠️ Access Interruption Notice",
             "dialogues": ["My access to {platform} has expired. Please refresh your session credentials."],
         },
+        "greetings": {
+            "title": "👋 Hello, Master!",
+            "dialogues": ["Ayaka is ready to assist your academic journey, Master!"],
+        },
     }
 
-    def __init__(self, config_file: str = "dialogues.json"):
+    def __init__(self, config_file: str = "dialogues.json", active_personality: Optional[str] = None):
         self.config_path = Path(config_file)
+        self.preferred_personality = active_personality
         self.data: dict[str, Any] = {}
         self.load()
 
@@ -86,16 +91,72 @@ class DialogueManager:
             try:
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     self.data = json.load(f)
-                logger.info(f"Loaded character dialogues from {self.config_path}")
+                logger.info(f"Loaded multi-personality dialogues from {self.config_path}")
                 return
             except Exception as e:
                 logger.error(f"Error reading dialogues from {self.config_path}: {e}")
 
         logger.warning("Using built-in default dialogues fallback.")
-        self.data = {"scenarios": self.DEFAULT_FALLBACKS}
+        self.data = {
+            "active_personality": "deredere",
+            "personalities": {"deredere": {"scenarios": self.DEFAULT_FALLBACKS}},
+        }
+
+    @property
+    def current_personality_key(self) -> str:
+        """Get the active personality key (e.g. 'deredere', 'tsundere', etc.)."""
+        if self.preferred_personality:
+            return self.preferred_personality.strip().lower()
+        return self.data.get("active_personality", "deredere").strip().lower()
+
+    def set_personality(self, personality_key: str) -> None:
+        """Dynamically switch character personality."""
+        self.preferred_personality = personality_key.strip().lower()
+
+    def list_personalities(self) -> list[str]:
+        """List all available personality keys."""
+        personalities = self.data.get("personalities", {})
+        if personalities:
+            return sorted(list(personalities.keys()))
+        if "scenarios" in self.data:
+            return ["deredere"]
+        return ["deredere"]
+
+    def _get_active_scenarios(self) -> dict[str, Any]:
+        """Get the scenario dictionary for the currently active personality."""
+        personalities = self.data.get("personalities", {})
+        active_key = self.current_personality_key
+
+        p_obj = personalities.get(active_key)
+        if not p_obj and "deredere" in personalities:
+            p_obj = personalities["deredere"]
+        elif not p_obj and personalities:
+            # Fallback to first available personality
+            p_obj = next(iter(personalities.values()))
+
+        if p_obj and isinstance(p_obj, dict) and "scenarios" in p_obj:
+            return p_obj["scenarios"]
+
+        # Support backward-compatible flat scenarios structure
+        if "scenarios" in self.data and isinstance(self.data["scenarios"], dict):
+            return self.data["scenarios"]
+
+        # Final fallback to built-in defaults
+        return self.DEFAULT_FALLBACKS
+
+    def get_personality_meta(self, personality_key: Optional[str] = None) -> dict[str, Any]:
+        """Get display name, description, and avatar URL for specified or active personality."""
+        active_key = (personality_key or self.current_personality_key).strip().lower()
+        p_obj = self.data.get("personalities", {}).get(active_key, {})
+        return {
+            "key": active_key,
+            "display_name": p_obj.get("display_name", f"Ayaka ({active_key.title()})"),
+            "description": p_obj.get("description", ""),
+            "avatar_url": p_obj.get("avatar_url", self.data.get("avatar_url", "")),
+        }
 
     def get_scenario(self, scenario_key: str) -> dict[str, Any]:
-        scenarios = self.data.get("scenarios", {})
+        scenarios = self._get_active_scenarios()
         return scenarios.get(scenario_key, self.DEFAULT_FALLBACKS.get(scenario_key, {}))
 
     def get_dialogue(self, scenario_key: str, **kwargs) -> str:
