@@ -166,6 +166,11 @@ class GoogleSyncService:
 
         list_id = self.config.google.tasks_list_id
         task_id = task.get("google_tasks_task_id")
+        # The caller's row may predate a concurrent sync that already created the
+        # Google task; re-read the stored ID under the lock to avoid duplicates.
+        if not task_id and task.get("id"):
+            stored = self.db.get_task(task["id"])
+            task_id = (stored or {}).get("google_tasks_task_id") or None
 
         import zoneinfo
 
