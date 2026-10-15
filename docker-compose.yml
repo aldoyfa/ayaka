@@ -5,6 +5,9 @@ services:
       dockerfile: Dockerfile
     container_name: ayaka-bot
     restart: unless-stopped
+    # Rootless Docker: container uid 0 maps to the host user that owns the
+    # bind-mounted data/.env/task_filters.json, so uid 0 is what can write them.
+    user: "0:0"
     env_file:
       - .env
     environment:
